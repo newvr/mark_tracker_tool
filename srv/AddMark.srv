@@ -1,0 +1,4 @@
+int64 marknumber
+bool permanent
+---
+bool result
