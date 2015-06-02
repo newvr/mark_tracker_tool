@@ -1,0 +1,5 @@
+string path
+int64 init
+---
+
+bool result
