@@ -20,7 +20,9 @@ FILE_SAVED_MARK = "saved_mark.txt"
 FILE_SAVED_INIT_PLAN = "saved_init_plan.txt"
 FILE_SAVED_MARK_TO_ROBOT = "saved_mark_to_robot.txt"
 TIMER = 0.2
+mon_fichier_speed = open("test_vitesse.txt", "w")
 # -- variables magiques
+
 
 chdir("/home/sfress/catkin_ws/src/mark_tracker_tools/")
 
@@ -36,6 +38,98 @@ def sign(var):
     return -1
 
 
+class State:
+
+    """
+    frame
+    timeold
+    positionold
+    rotationold
+    timenew
+    positionnew
+    rotationnew
+    """
+
+    def __init__(self, frame):
+        "constructeur avec specification du frame"
+
+        self.compteur = 0
+        self.time_init = rospy.Time.now()
+        self.frame = frame
+        self.time_old = rospy.Time.now()
+        self.position_old = [0.0, 0.0, 0.0]
+        self.rotation_old = [0.0, 0.0, 0.0, 1.0]
+
+        self.time_new = rospy.Time.now()
+        self.position_new = [0.0, 0.0, 0.0]
+        self.rotation_new = [0.0, 0.0, 0.0, 1.0]
+        self.vitesse = [0.0, 0.0, 0.0]
+
+    def print_info(self):
+        print self.frame
+        print self.time_old
+        print self.position_old
+        print self.rotation_old
+
+        print self.time_new
+        print self.position_new
+        print self.rotation_new
+        print self.vitesse
+
+    def maj_state(self, postion, rotation):
+        """
+            save newer data in "new" and save the old ones in "old"
+        """
+        if self.compteur == 3:
+            self.time_old = self.time_new
+            self.position_old = self.position_new
+            self.rotation_old = self.rotation_new
+
+            self.time_new = rospy.Time.now()
+            self.position_new = postion
+            self.rotation_new = rotation
+            self.compteur = 0
+            self.calcul_speed_lin()
+
+        self.compteur += 1
+
+    def calcul_speed_lin(self):
+        """
+        look the distance made during delta_t and calcul the speed of the robot
+        """
+        # in nanoseconds //* 10 ** -9
+
+        delta_t = (self.time_new - self.time_old).nsecs
+        delta_position = [
+            self.position_new[0] - self.position_old[0],
+            self.position_new[1] - self.position_old[1],
+            self.position_new[2] - self.position_old[2]]
+
+        if delta_position[0] != 0 and delta_position[
+                1] != 0 and delta_position[2] != 0:
+
+            self.vitesse = [
+                delta_position[0] / delta_t,
+                delta_position[1] / delta_t,
+                delta_position[2] / delta_t]
+
+            print "#################"
+
+            message = str(
+                self.time_new.secs + self.time_new.nsecs * 10 ** -9) + " "
+            message = message + str(
+                self.vitesse[0]) + " " + str(
+                self.vitesse[1]) + " " + str(self.vitesse[2])
+            message = message + "\n"
+            mon_fichier_speed.write(message)
+
+            print delta_position
+            print self.vitesse[0]
+            print self.vitesse[1]
+            print self.vitesse[2]
+            print "-----------------"
+
+
 class ToolsPepper:
 
     """
@@ -47,10 +141,14 @@ class ToolsPepper:
         # self.motionProxy = ALProxy("ALMotion", IP, PORT)
        # self.postureProxy = ALProxy("ALRobotPosture", IP, PORT)
         self.mark_to_save = []
+        # flag actived by service init_mark_to_robot to bring robot
         self.link_to_robot = False
+        # flag activated by service init_track_speed to specify which mark we
+        # want to track
+        self.speed_tracker_activated = False
         self.listener = tf.TransformListener()
         self.broadcaster = tf.TransformBroadcaster()
-
+        self.state_speed_calcul = State(" ")
         # rospy.Subscriber("/result_position", Odometry,self.position_callback)
         # rospy.Timer(rospy.Duration(TIMER_ALMOTION), self.timer_callback)
         self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]], [
@@ -82,6 +180,9 @@ class ToolsPepper:
         rospy.Service(
             'load_init', LoadInit, self.load_init)
 
+        rospy.Service(
+            'init_track_speed', InitTrackSpeed, self.init_track_speed)
+
         self.len = 0
         # rospy.Service(
         #   'how_to_GoToMark', HowToGoToMark, self.how_to_GoToMark)
@@ -91,9 +192,12 @@ class ToolsPepper:
     def publish_tf(self, data):
         """
         publish tf contained in self.vect_tf
+        This is called while a mark is detected
+
+        In this function we put things that need to be looped ( as
+        publish tf or calcul speed )
         """
         # print self.vect_tf
-
         for i in range(len(self.vect_tf)):
             self.broadcaster.sendTransform(
                 self.vect_tf[i][2], self.vect_tf[i][3], rospy.Time.now(),
@@ -106,26 +210,49 @@ class ToolsPepper:
             print"************"
             self.len = len(self.vect_tf)
 
-        if self.link_to_robot == True:
-            try:
-                # robot_part = str(self.vect_tf[1][0]).split("/")
-                name = str(self.vect_tf[1][0]).split("/")
-                robot_part = name[1]
-                (trans, rot) = self.listener.lookupTransform(
-                    robot_part, "base_link", rospy.Time(0))
-                # ou devrait donc etre notre base_link par rapport a notre mark: on
-                # cree un base_link "virtuel"
-                self.broadcaster.sendTransform(
-                    trans, rot, rospy.Time.now(),
-                    "/mon_tf/base_link", "/mon_tf/" + robot_part)
-                # comment est notre base_link virtuel apr rapport a notre map?
-                (trans_fin, rot_fin) = self.listener.lookupTransform(
-                    "mon_tf/base_link", MAP, rospy.Time(0))
-                self.broadcaster.sendTransform(
-                    trans_fin, rot_fin, rospy.Time.now(), MAP, "/base_link")
+        ##### ici partie pour calculer la vitesse du frame choisit#####
+        if self.speed_tracker_activated == True:
+            (trans, rot) = self.listener.lookupTransform(
+                self.state_speed_calcul.frame, MAP, rospy.Time(0))
+            self.state_speed_calcul.maj_state(trans, rot)
 
-            except Exception, exc:
-                print " waiting for tf..."
+        if self.link_to_robot == True:
+            self.func_link_to_robot()
+
+    def func_link_to_robot(self):
+        """
+            it publishes the link between the map and the robot, it
+             permit to the robot to be in the same tf
+             tree than map and marker.
+             We know where the head should be (is is saved in self.vect_tf[1]),
+             we look the relation between the head and /base_link (
+             which is the origin of the tf tree of the robot ) and we link it
+
+            (run >>rosrun tf view_frames for more info)
+        """
+
+        try:
+            # robot_part = str(self.vect_tf[1][0]).split("/")
+            name = str(self.vect_tf[1][0]).split("/")
+            robot_part = name[1]
+            (trans, rot) = self.listener.lookupTransform(
+                robot_part, "base_link", rospy.Time(0))
+            # ou devrait donc etre notre base_link par rapport a notre mark: on
+            # cree un base_link "virtuel"
+            self.broadcaster.sendTransform(
+                trans, rot, rospy.Time.now(),
+                "/mon_tf/base_link", "/mon_tf/" + robot_part)
+            # comment est notre base_link virtuel apr rapport a notre map?
+            (trans_fin, rot_fin) = self.listener.lookupTransform(
+                "mon_tf/base_link", MAP, rospy.Time(0))
+            self.broadcaster.sendTransform(
+                trans_fin, rot_fin, rospy.Time.now(), MAP, "/base_link")
+
+        except Exception, exc:
+            print " waiting for tf..."
+
+
+# ============================= ROS SERVICES ======================
 
     def init_plan(self, req):
         """
@@ -216,7 +343,7 @@ class ToolsPepper:
         """
         try:
             trans, rot = self.listener.lookupTransform(
-                '/map', req.robotpart, rospy.Time.now())
+                '/map', req.robotpart, rospy.Time(0))
             euler = euler_from_quaternion(rot)
             return WhereIsResponse(trans[0],
                                    trans[1], euler[2])
@@ -270,14 +397,14 @@ class ToolsPepper:
                     new = False
 
             if req.permanent == True:
-                self.save_mark(my_mark_publish, MAP, trans, rot)
+                self.save_mark(my_mark_publish, trans, rot)
 
             return AddMarkResponse(new)
         except Exception, e:
             print"add_mark_temporary error"
             print e
 
-    def save_mark(self, my_mark_publish, MAP, trans, rot):
+    def save_mark(self, my_mark_publish, trans, rot):
         """
         called by add mark if permanent==True. It checks if we already tried
         to save our mark before to write it in the file  then it overwrite it)
@@ -298,6 +425,10 @@ class ToolsPepper:
         mon_fichier.close()
 
     def load_mark(self, req):
+        """
+        take in arguments the path of the file where the "saved_mark.txt" is
+        and publish the corresponding tf
+        """
         chdir(req.path)  # to put
         temp_vect = []
         temp_vect.append(self.vect_tf[0])
@@ -315,6 +446,12 @@ class ToolsPepper:
         return LoadMarkResponse(True)
 
     def load_init(self, req):
+        """
+        if req.init=0, we initialize the plan with the file
+        "saved_init_plan.txt" is. if req.init=1, we initialize the relation
+         between the mark and the robot with "saved_mark_to_robot.txt"
+
+        """
         if req.init == 0:
             indice = 0
             doc = FILE_SAVED_INIT_PLAN
@@ -350,6 +487,25 @@ class ToolsPepper:
             print "howtgotomark() error, is ", my_mark_publish, " saved?"
             print e
 
+    def init_track_speed(self, req):
+        """
+        Arguments: name of the frame to track( if it is the
+        mark or the robot's feets)
+        return: true if frame exists
+        """
+        try:
+            (trans, rot) = self.listener.lookupTransform(req.frame,
+                                                         MAP,
+                                                         rospy.Time(0))
+            # if listener OK :
+            self.state_speed_calcul = State(req.frame)
+            self.speed_tracker_activated = True
+            return InitTrackSpeedResponse(True)
+
+        except Exception, e:
+            print "init_track_speed() error, is ", req.frame, " saved?"
+            print e
+
 
 def write_message(vecteur):
     """
@@ -357,8 +513,7 @@ def write_message(vecteur):
     """
     message = ""
     for k in range(0, len(vecteur)):
-        print "iiiii"
-        print "leee", len(vecteur)
+
         message = message + str(vecteur[k][0]) + " " + str(
             vecteur[k][1]) + " " + str(
             vecteur[k][2][0]) + " " + str(
@@ -384,6 +539,7 @@ def main(args):
         rospy.spin()
     except KeyboardInterrupt:
         print "Shutting down"
+        mon_fichier_speed.close()
 
         print "Finished."
 

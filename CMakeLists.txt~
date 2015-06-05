@@ -63,6 +63,7 @@ find_package(catkin REQUIRED COMPONENTS
    HowToGoToMark.srv
    LoadMark.srv
    LoadInit.srv
+   InitTrackSpeed.srv
  )
  
 
