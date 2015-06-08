@@ -12,21 +12,16 @@ if __name__ == "__main__":
         # give postion robot
         print "debut"
 
-        # rospy.wait_for_service('load_init')
-        # init_plan = rospy.ServiceProxy('load_init', LoadInit)
-        # resp = init_plan("/home/sfress/catkin_ws/src/mark_tracker_tools/", 0)
-        # print "##Initplan", resp.result
-        # time.sleep(1)  # delay needed to broadcast of tf
-
-        # rospy.wait_for_service('load_init')
-        # init_plan = rospy.ServiceProxy('load_init', LoadInit)
-        # resp = init_plan("/home/sfress/catkin_ws/src/mark_tracker_tools/", 1)
-        # print "##Initplan", resp.result
-
-        rospy.wait_for_service('init_plan')
-        init_plan = rospy.ServiceProxy('init_plan', InitPlan)
-        resp = init_plan(3, True)
+        rospy.wait_for_service('load_init')
+        init_plan = rospy.ServiceProxy('load_init', LoadInit)
+        resp = init_plan("/home/sfress/catkin_ws/src/mark_tracker_tools/", 0)
         print "##Initplan", resp.result
+        time.sleep(1)  # delay needed to broadcast of tf
+
+        # rospy.wait_for_service('init_plan')
+        # init_plan = rospy.ServiceProxy('init_plan', InitPlan)
+        # resp = init_plan(1, True)
+        # print "##Initplan", resp.result
 
         time.sleep(1)  # delay needed to broadcast of tf
 
@@ -35,18 +30,23 @@ if __name__ == "__main__":
         resp = init_plan("/home/sfress/catkin_ws/src/mark_tracker_tools/", 1)
         print "##Initplan", resp.result
 
-        # rospy.wait_for_service('load_mark')
-        # load_mark = rospy.ServiceProxy('load_mark', LoadMark)
-        # resp = load_mark("/home/sfress/catkin_ws/src/mark_tracker_tools/")
+        # rospy.wait_for_service('load_init')
+        # init_plan = rospy.ServiceProxy('load_init', LoadInit)
+        # resp = init_plan("/home/sfress/catkin_ws/src/mark_tracker_tools/", 1)
         # print "##Initplan", resp.result
 
-        # time.sleep(1)  # delay needed to broadcast of tf
+        rospy.wait_for_service('load_mark')
+        load_mark = rospy.ServiceProxy('load_mark', LoadMark)
+        resp = load_mark("/home/sfress/catkin_ws/src/mark_tracker_tools/")
+        print "##Initplan", resp.result
+
+        time.sleep(1)  # delay needed to broadcast of tf
 
         # rospy.wait_for_service('init_mark_to_robot')
         # init_mark_to_robot = rospy.ServiceProxy(
         #     'init_mark_to_robot', InitMarkToRobot)
         # resp = init_mark_to_robot(
-        #     2, 0.44, -0.70, 0, "HeadTouchFront_frame", True)
+        #     2, 0, -0.81, 0, "HeadTouchFront_frame", True)
         # print "##Init mark to head", resp.result
 
         # rospy.wait_for_service('where_is')
@@ -56,11 +56,6 @@ if __name__ == "__main__":
 
         # give the relative command to send to the robot to go to absolute
         # coord
-
-        # rospy.wait_for_service('how_to_go')
-        # how_to_go = rospy.ServiceProxy('how_to_go', HowToGo)
-        # resp = how_to_go(0, 0, 0)
-        # print "##I need to ", resp.x, resp.y, resp.theta
 
         # publish tf_coord of a mark
 

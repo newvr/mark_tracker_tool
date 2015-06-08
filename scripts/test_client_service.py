@@ -12,10 +12,10 @@ if __name__ == "__main__":
         # give postion robot
         print "debut"
 
-        # rospy.wait_for_service('where_is')
-        # where_is = rospy.ServiceProxy('where_is', WhereIs)
-        # resp = where_is("ar_marker_2")
-        # print "##Iam", resp.x, resp.y, resp.theta
+        rospy.wait_for_service('where_is')
+        where_is = rospy.ServiceProxy('where_is', WhereIs)
+        resp = where_is("ar_marker_2")
+        print "##Iam", resp.x, resp.y, resp.theta
 
         # give the relative command to send to the robot to go to absolute
         # coord
