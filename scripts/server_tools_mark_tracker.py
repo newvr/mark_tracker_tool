@@ -345,6 +345,7 @@ class ToolsPepper:
             trans, rot = self.listener.lookupTransform(
                 '/map', req.robotpart, rospy.Time(0))
             euler = euler_from_quaternion(rot)
+            print euler
             return WhereIsResponse(trans[0],
                                    trans[1], euler[2])
         except Exception, exc:
