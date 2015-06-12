@@ -20,11 +20,14 @@ FILE_SAVED_MARK = "saved_mark.txt"
 FILE_SAVED_INIT_PLAN = "saved_init_plan.txt"
 FILE_SAVED_MARK_TO_ROBOT = "saved_mark_to_robot.txt"
 TIMER = 0.2
+# MARKER_NAME = "4x4_"
+MARKER_NAME = "ar_marker_"
+
 mon_fichier_speed = open("test_vitesse.txt", "w")
 # -- variables magiques
 
 
-chdir("/home/sfress/catkin_ws/src/mark_tracker_tools/")
+chdir("/home/sfress/catkin_ws/src/mark_tracker_tools/saved_tf/")
 
 
 def sign(var):
@@ -183,6 +186,9 @@ class ToolsPepper:
         rospy.Service(
             'init_track_speed', InitTrackSpeed, self.init_track_speed)
 
+        rospy.Service(
+            'ask_tf', AskTf, self.ask_tf)
+
         self.len = 0
         # rospy.Service(
         #   'how_to_GoToMark', HowToGoToMark, self.how_to_GoToMark)
@@ -232,7 +238,9 @@ class ToolsPepper:
         """
 
         try:
-            # robot_part = str(self.vect_tf[1][0]).split("/")
+
+            # get the relation to set to make the link between base_link and
+            # our map
             name = str(self.vect_tf[1][0]).split("/")
             robot_part = name[1]
             (trans, rot) = self.listener.lookupTransform(
@@ -248,6 +256,12 @@ class ToolsPepper:
             self.broadcaster.sendTransform(
                 trans_fin, rot_fin, rospy.Time.now(), MAP, "/base_link")
 
+            # creation d'un frame pour les data de l'odom dans notre plan
+            (trans_odom, rot_odom) = self.listener.lookupTransform(
+                "base_link", "odom", rospy.Time(0))
+            self.broadcaster.sendTransform(
+                trans_odom, rot_odom, rospy.Time.now(), "/odom_base_link", MAP)
+
         except Exception, exc:
             print " waiting for tf..."
 
@@ -261,7 +275,7 @@ class ToolsPepper:
             enable the trackin in our plan.
         """
         try:
-            marker = '/ar_marker_' + str(req.marknumber)
+            marker = MARKER_NAME + str(req.marknumber)
             trans, rot = self.listener.lookupTransform(
                 marker, '/map', rospy.Time(0))
             self.vect_tf[0] = [CAMERA_NAME, MAP, trans, rot]
@@ -303,7 +317,7 @@ class ToolsPepper:
             each frame_id at different times a lookup will never succeed
         """
         try:
-            marker = '/ar_marker_' + str(req.marknumber)
+            marker = MARKER_NAME + str(req.marknumber)
             (trans_foot_to_body,
              rot_foot_to_body) = self.listener.lookupTransform(
                 ROBOT_FOOT, req.robotpart, rospy.Time(0))
@@ -345,34 +359,46 @@ class ToolsPepper:
             trans, rot = self.listener.lookupTransform(
                 '/map', req.robotpart, rospy.Time(0))
             euler = euler_from_quaternion(rot)
-            print euler
+
             return WhereIsResponse(trans[0],
-                                   trans[1], euler[2])
+                                   trans[1], euler[2], True)
         except Exception, exc:
             print"where_is() error"
             print exc
+            return WhereIsResponse(0,
+                                   0, 0, False)
 
     def how_to_go(self, req):
         """
         Arguments: absolute (x,y,theta) of where we want to go
         return: (x,y,theta) relative to the robot
         """
+
+        ret = False
+        while ret != True:
+            (trans, rot, ret) = self.how_to_go_publish_temp(req)
+        euler = euler_from_quaternion(rot)
+
+        return HowToGoResponse(trans[0], trans[1],
+                               euler[2])
+
+    def how_to_go_publish_temp(self, req):
         try:
             quat = quaternion_from_euler(0, 0, req.theta)
             self.broadcaster.sendTransform(
-                [req.x, req.y, 0], quat, rospy.Time(0),
-                "/mon_tf/mygoal", "/map")
-            time.sleep(TIME_BROADCAST_LISTEN)  # or bug BUG
+                [req.x, req.y, 0], quat, rospy.Time.now(),
+                "/mon_tf/mygoal", MAP)
+            print "1111"
             # equivaut a un changement de repere
             (trans, rot) = self.listener.lookupTransform("/base_footprint",
                                                          "/mon_tf/mygoal",
                                                          rospy.Time(0))
-            euler = euler_from_quaternion(rot)
-            return HowToGoResponse(trans[0], trans[1],
-                                   euler[2])
-        except Exception, e:
-            print "how_to_go() error"
-            print e
+
+            print "222"
+            return(trans, rot, True)
+        except Exception, exc:
+            print " waiting for tf..."
+            return(0, 0, False)
 
     def add_mark(self, req):
         """
@@ -384,7 +410,7 @@ class ToolsPepper:
         try:
             # To be sure to listen to the right thing
             time.sleep(TIME_BROADCAST_LISTEN)
-            marker = '/ar_marker_' + str(req.marknumber)
+            marker = MARKER_NAME + str(req.marknumber)
             my_mark_publish = '/my_mark_publish' + str(req.marknumber)
             trans, rot = self.listener.lookupTransform(
                 MAP, marker, rospy.Time(0))
@@ -482,7 +508,13 @@ class ToolsPepper:
                                                          my_mark_publish,
                                                          rospy.Time(0))
             euler = euler_from_quaternion(rot)
-            return HowToGoToMarkResponse(trans[0], trans[1], euler[2])
+
+            if trans[2] > 0.3:  # si bug, on tourne juste un peu
+                print "glitch iif "
+                return HowToGoToMarkResponse(0, 0, 0.3, False)
+            else:
+                print'ok'
+                return HowToGoToMarkResponse(trans[0], trans[1], euler[2], True)
 
         except Exception, e:
             print "howtgotomark() error, is ", my_mark_publish, " saved?"
@@ -505,6 +537,19 @@ class ToolsPepper:
 
         except Exception, e:
             print "init_track_speed() error, is ", req.frame, " saved?"
+            print e
+
+    def ask_tf(self, req):
+        try:
+            (trans, rot) = self.listener.lookupTransform(req.frameA,
+                                                         req.frameB,
+                                                         rospy.Time(0))
+            # if listener OK :
+            euler = euler_from_quaternion(rot)
+            return AskTfResponse(trans[0], trans[1], euler[2])
+
+        except Exception, e:
+            print "ask_tf() error, is ", req.frameA, "or ", req.frameB, "published"
             print e
 
 
