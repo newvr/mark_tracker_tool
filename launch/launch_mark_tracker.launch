@@ -22,5 +22,9 @@
  	<arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
 	
 	<node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path)" />
+	
+	
+	<arg name="rviz_config" default="my_settings.rviz" />
+	<node pkg="rviz" type="rviz" name="rviz" args=" $(arg path)$(arg rviz_config)"/>
 
 </launch>
