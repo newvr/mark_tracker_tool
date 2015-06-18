@@ -1,4 +1,5 @@
-string robotpart
+string desired_frame
+string relative_to_frame
 
 ---
 

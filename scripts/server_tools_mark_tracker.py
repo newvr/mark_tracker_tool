@@ -5,7 +5,7 @@ import numpy
 import time
 import sys
 from visualization_msgs.msg import Marker
-
+from sensor_msgs.msg import JointState
 import tf
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from mark_tracker_tools.srv import *
@@ -23,11 +23,8 @@ TIMER = 0.2
 # MARKER_NAME = "4x4_"
 MARKER_NAME = "ar_marker_"
 
-mon_fichier_speed = open("test_vitesse.txt", "w")
+#mon_fichier_speed = open("../saved_tf/test_vitesse.txt", "w")
 # -- variables magiques
-
-
-chdir("/home/sfress/catkin_ws/src/mark_tracker_tools/saved_tf/")
 
 
 def sign(var):
@@ -149,15 +146,22 @@ class ToolsPepper:
         # flag activated by service init_track_speed to specify which mark we
         # want to track
         self.speed_tracker_activated = False
+        self.trans_odom_init = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
         self.listener = tf.TransformListener()
         self.broadcaster = tf.TransformBroadcaster()
         self.state_speed_calcul = State(" ")
+        self.trans_o_map = [0, 0, 0]
+        self.rot_o_map = [0, 0, 0, 1]
+
         # rospy.Subscriber("/result_position", Odometry,self.position_callback)
         # rospy.Timer(rospy.Duration(TIMER_ALMOTION), self.timer_callback)
         self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]], [
             "ini", "child", [0, 0, 0], [0, 0, 0, 1]]]
         rospy.Subscriber(
             "/cam0/visualization_marker", Marker, self.publish_tf)
+
+        rospy.Subscriber(
+            "/joint_states", JointState, self.joint_state_callback)
         # self.vect_tf = [CAMERA_NAME, [0, 0, 0], [0, 0, 0, 1]]
 
         rospy.Service(
@@ -186,14 +190,46 @@ class ToolsPepper:
         rospy.Service(
             'init_track_speed', InitTrackSpeed, self.init_track_speed)
 
-        rospy.Service(
-            'ask_tf', AskTf, self.ask_tf)
-
         self.len = 0
+        self.ret = False
+
         # rospy.Service(
         #   'how_to_GoToMark', HowToGoToMark, self.how_to_GoToMark)
 
     # mais doit marcer ac launch init et relaunch le track no pepper
+
+    def joint_state_callback(self, data):
+        """
+            to publish odometry ( it has to be run whereas the mark is visible
+                or not, so it is called whenever the joints are updated)
+            => the odometry is relative to the frame base_link
+        """
+        if self.link_to_robot == True:
+            while self.ret == False:
+                # the odometry depends on where we start the robot, this step
+                # is to save the transformation between the odometry data
+                # and our map. The "while" function is because we need
+                # to publish the tf several times, to make sure that you're
+                # repeatedly publishing the positions of the frames so
+                # that tf can correctly interpolate
+                try:
+                    (self.trans_o_map,
+                     self.rot_o_map) = self.listener.lookupTransform(
+                        "map", "odom", rospy.Time(0))
+
+                    self.ret = True
+                except Exception, exc:
+                    print " waiting for tf..."
+                    print exc
+            (trans_odom, rot_odom) = self.listener.lookupTransform(
+                "odom", "base_link", rospy.Time(0))
+            self.broadcaster.sendTransform(
+                self.trans_o_map, self.rot_o_map, rospy.Time.now(),
+                "/tf_odom_to_map", "/map")
+            self.broadcaster.sendTransform(
+                trans_odom, rot_odom, rospy.Time.now(),
+                "/tf_odom_to_baselink", "/tf_odom_to_map")
+            # print "tot_calc", tot_trans, tot_rot
 
     def publish_tf(self, data):
         """
@@ -203,7 +239,7 @@ class ToolsPepper:
         In this function we put things that need to be looped ( as
         publish tf or calcul speed )
         """
-        # print self.vect_tf
+
         for i in range(len(self.vect_tf)):
             self.broadcaster.sendTransform(
                 self.vect_tf[i][2], self.vect_tf[i][3], rospy.Time.now(),
@@ -236,10 +272,9 @@ class ToolsPepper:
 
             (run >>rosrun tf view_frames for more info)
         """
-
         try:
 
-            # get the relation to set to make the link between base_link and
+            # get the relation to set the link between base_link and
             # our map
             name = str(self.vect_tf[1][0]).split("/")
             robot_part = name[1]
@@ -250,24 +285,18 @@ class ToolsPepper:
             self.broadcaster.sendTransform(
                 trans, rot, rospy.Time.now(),
                 "/mon_tf/base_link", "/mon_tf/" + robot_part)
-            # comment est notre base_link virtuel apr rapport a notre map?
+            # comment est notre base_link virtuel par rapport a notre map?
             (trans_fin, rot_fin) = self.listener.lookupTransform(
                 "mon_tf/base_link", MAP, rospy.Time(0))
             self.broadcaster.sendTransform(
                 trans_fin, rot_fin, rospy.Time.now(), MAP, "/base_link")
 
-            # creation d'un frame pour les data de l'odom dans notre plan
-            (trans_odom, rot_odom) = self.listener.lookupTransform(
-                "base_link", "odom", rospy.Time(0))
-            self.broadcaster.sendTransform(
-                trans_odom, rot_odom, rospy.Time.now(), "/odom_base_link", MAP)
-
         except Exception, exc:
             print " waiting for tf..."
+            print exc
 
 
 # ============================= ROS SERVICES ======================
-
     def init_plan(self, req):
         """
             add in vect_mark[0] the coordinates of the camera deduced from
@@ -285,6 +314,7 @@ class ToolsPepper:
                 message = write_message([self.vect_tf[0]])
                 mon_fichier.write(message)
                 mon_fichier.close()
+
             return InitPlanResponse(True)
         except Exception, exc:
             print exc
@@ -345,9 +375,13 @@ class ToolsPepper:
                 marker, "mon_tf/" + req.robotpart, rospy.Time(0))
             self.vect_tf[1] = ["mon_tf/" + req.robotpart, marker,
                                trans_marker_to_body, rot_marker_to_body]
+
+            # to init the right odom
+
             return True
         except Exception, exc:
-            print " waiting for tf..."
+            print " waiting fsssor tf..."
+            print exc
 
     def where_is(self, req):
         """
@@ -357,9 +391,9 @@ class ToolsPepper:
         """
         try:
             trans, rot = self.listener.lookupTransform(
-                '/map', req.robotpart, rospy.Time(0))
+                req.relative_to_frame, req.desired_frame, rospy.Time(0))
             euler = euler_from_quaternion(rot)
-
+            # print trans, rot
             return WhereIsResponse(trans[0],
                                    trans[1], euler[2], True)
         except Exception, exc:
@@ -468,7 +502,7 @@ class ToolsPepper:
                      [fichier[k][i] for i in range(2, 5)],
                      [fichier[k][i] for i in range(5, 9)]]
             temp_vect.append(toadd)
-        print temp_vect
+        # print temp_vect
         self.vect_tf = temp_vect
         return LoadMarkResponse(True)
 
@@ -539,19 +573,6 @@ class ToolsPepper:
             print "init_track_speed() error, is ", req.frame, " saved?"
             print e
 
-    def ask_tf(self, req):
-        try:
-            (trans, rot) = self.listener.lookupTransform(req.frameA,
-                                                         req.frameB,
-                                                         rospy.Time(0))
-            # if listener OK :
-            euler = euler_from_quaternion(rot)
-            return AskTfResponse(trans[0], trans[1], euler[2])
-
-        except Exception, e:
-            print "ask_tf() error, is ", req.frameA, "or ", req.frameB, "published"
-            print e
-
 
 def write_message(vecteur):
     """
@@ -579,53 +600,33 @@ def main(args):
     """
 
     rospy.init_node('tools_pepper', anonymous=True)
+
+    value = args[1]
+    chdir(value)
+    # rospy.loginfo(
+    #     'Parameter %s has value %s', rospy.resolve_name('~foo'), value)
+
+    # value = rospy.get_param('path')
+    # print "valuuue", value
+    #full_name = rospy.search_param()
+    # print full_name
+    # if full_name != None:
+    #     path = rospy.get_param(full_name, "path")
+    # else:
+    #     path = "else"
+
+   # print "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", path
+
     ToolsPepper()
 
     try:
         rospy.spin()
     except KeyboardInterrupt:
         print "Shutting down"
-        mon_fichier_speed.close()
+        # mon_fichier_speed.close()
 
         print "Finished."
 
 
 if __name__ == '__main__':
     main(sys.argv)
-
-    # maybe usefull later
-    # def write_file(self, req):
-    #     """
-    #         write in a permanent launchfile the tf that has been published
-    #     """
-    #     try:
-    # chdir("/home/sfress/catkin_ws/src/mark_tracker/launch/")
-
-    #         mon_fichier = open("launch_tf_cam_map.launch", "w")
-    #         marker = '/ar_marker_' + str(req.marknumber)
-    #         trans, rot = self.listener.lookupTransform(
-    #             marker, '/map', rospy.Time.now())
-    #         message = str("""
-    #   <launch>
-    #   <node pkg="tf" type="static_transform_publisher"
-    #     name=""")
-    #         message = message + '"' + req.cameraname + str(
-    #             '"') + str(""" args=" """)
-    #         message = message + str(trans[0]) + " " + str(
-    #             trans[1]) + " " + str(trans[2]) + " "
-    #         message = message + str(rot[0]) + " " + str(rot[1]) + " " + str(
-    #             rot[2]) + " " + str(
-    # rot[3]) + " /map /" + req.cameraname + str(
-    #             """ 30"/>""")
-    #         message = message + "</launch>"
-    #         print "======message saved in launchfile : "
-    #         print message
-    #         print "======"
-    #         mon_fichier.write(message)
-    #         mon_fichier.close()
-    # subprocess.call(
-    # ["roslaunch /home/sfress/catkin_ws/src/mark_tracker/
-    # launch/launch_tf_cam_map.launch"])
-    #         return InitPlanResponse(True)
-    #     except Exception, exc:
-    #         print exc
