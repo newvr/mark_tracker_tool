@@ -25,7 +25,7 @@
 	
 	
 	<arg name="rviz_config" default="my_settings.rviz" />
-	<arg name="path" default="$(find mark_tracker_tools)/launch" />
-	<node pkg="rviz" type="rviz" name="rviz" args=" $(arg path)$(arg rviz_config)"/>
+	<arg name="path_rviz" default="$(find mark_tracker_tools)/launch" />
+	<node pkg="rviz" type="rviz" name="rviz" args=" $(arg path_rviz)$(arg rviz_config)"/>
 
 </launch>

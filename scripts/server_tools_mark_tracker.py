@@ -6,11 +6,12 @@ import time
 import sys
 from visualization_msgs.msg import Marker
 from sensor_msgs.msg import JointState
+from std_srvs.srv import Empty, EmptyResponse
 import tf
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from mark_tracker_tools.srv import *
 from os import chdir
-# -- variables magiques
+# -- variables magiques TODO
 TIME_BROADCAST_LISTEN = 0.5
 CAMERA_NAME = "axis_camera"
 # ROBOT_REF = "base_link"
@@ -121,7 +122,7 @@ class State:
                 self.vitesse[0]) + " " + str(
                 self.vitesse[1]) + " " + str(self.vitesse[2])
             message = message + "\n"
-            mon_fichier_speed.write(message)
+            # mon_fichier_speed.write(message)
 
             print delta_position
             print self.vitesse[0]
@@ -176,9 +177,6 @@ class ToolsPepper:
             'add_mark', AddMark, self.add_mark)
 
         rospy.Service(
-            'how_to_go_to_mark', HowToGoToMark, self.how_to_go_to_mark)
-
-        rospy.Service(
             'init_mark_to_robot', InitMarkToRobot, self.init_mark_to_robot)
 
         rospy.Service(
@@ -190,11 +188,11 @@ class ToolsPepper:
         rospy.Service(
             'init_track_speed', InitTrackSpeed, self.init_track_speed)
 
-        self.len = 0
-        self.ret = False
+        rospy.Service(
+            'reset_odom', Empty, self.reset_odom)
 
-        # rospy.Service(
-        #   'how_to_GoToMark', HowToGoToMark, self.how_to_GoToMark)
+        self.len = 0
+        self.odom_maj = False
 
     # mais doit marcer ac launch init et relaunch le track no pepper
 
@@ -205,7 +203,8 @@ class ToolsPepper:
             => the odometry is relative to the frame base_link
         """
         if self.link_to_robot == True:
-            while self.ret == False:
+            while self.odom_maj == False:
+
                 # the odometry depends on where we start the robot, this step
                 # is to save the transformation between the odometry data
                 # and our map. The "while" function is because we need
@@ -217,7 +216,7 @@ class ToolsPepper:
                      self.rot_o_map) = self.listener.lookupTransform(
                         "map", "odom", rospy.Time(0))
 
-                    self.ret = True
+                    self.odom_maj = True
                 except Exception, exc:
                     print " waiting for tf..."
                     print exc
@@ -531,29 +530,6 @@ class ToolsPepper:
         self.vect_tf[indice] = toadd
         return LoadInitResponse(True)
 
-    def how_to_go_to_mark(self, req):
-        """
-        Arguments: Number of the mark
-        return: (x,y,theta) relative to the robot to go to the mark
-        """
-        try:
-            my_mark_publish = '/my_mark_publish' + str(req.marknumber)
-            (trans, rot) = self.listener.lookupTransform("/base_footprint",
-                                                         my_mark_publish,
-                                                         rospy.Time(0))
-            euler = euler_from_quaternion(rot)
-
-            if trans[2] > 0.3:  # si bug, on tourne juste un peu
-                print "glitch iif "
-                return HowToGoToMarkResponse(0, 0, 0.3, False)
-            else:
-                print'ok'
-                return HowToGoToMarkResponse(trans[0], trans[1], euler[2], True)
-
-        except Exception, e:
-            print "howtgotomark() error, is ", my_mark_publish, " saved?"
-            print e
-
     def init_track_speed(self, req):
         """
         Arguments: name of the frame to track( if it is the
@@ -572,6 +548,17 @@ class ToolsPepper:
         except Exception, e:
             print "init_track_speed() error, is ", req.frame, " saved?"
             print e
+
+    def reset_odom(self, _):
+        """
+            in joint_state_callback(self, data), we publish how the odometry
+            given by naoqi is, relative to our plan.
+            To do that it is initialized to the base_link mesured by our
+            mark_tracker. Passing self.odom_maj to True initalizes the odom
+            to the base_link again
+        """
+        self.odom_maj = False
+        return EmptyResponse()
 
 
 def write_message(vecteur):
