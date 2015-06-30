@@ -11,20 +11,22 @@ import tf
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from mark_tracker_tools.srv import *
 from os import chdir
+import functools
 # -- variables magiques TODO
-TIME_BROADCAST_LISTEN = 0.5
+
 CAMERA_NAME = "axis_camera"
 # ROBOT_REF = "base_link"
 ROBOT_FOOT = "base_footprint"
 MAP = "/map"
 FILE_SAVED_MARK = "saved_mark.txt"
 FILE_SAVED_INIT_PLAN = "saved_init_plan.txt"
-FILE_SAVED_MARK_TO_ROBOT = "saved_mark_to_robot.txt"
+FILE_SAVED_MARK_TO_ROBOT = "saved_mark_to_"
 TIMER = 0.2
 # MARKER_NAME = "4x4_"
 MARKER_NAME = "ar_marker_"
+# NAMESPACE = ["robot1"]
 
-#mon_fichier_speed = open("../saved_tf/test_vitesse.txt", "w")
+# mon_fichier_speed = open("../saved_tf/test_vitesse.txt", "w")
 # -- variables magiques
 
 
@@ -137,11 +139,13 @@ class ToolsPepper:
     contains all services that can be called by the client
     """
 
-    def __init__(self):
+    def __init__(self, namespace):
         # =================
         # self.motionProxy = ALProxy("ALMotion", IP, PORT)
        # self.postureProxy = ALProxy("ALRobotPosture", IP, PORT)
         self.mark_to_save = []
+
+        self.namespace = namespace
         # flag actived by service init_mark_to_robot to bring robot
         self.link_to_robot = False
         # flag activated by service init_track_speed to specify which mark we
@@ -153,16 +157,38 @@ class ToolsPepper:
         self.state_speed_calcul = State(" ")
         self.trans_o_map = [0, 0, 0]
         self.rot_o_map = [0, 0, 0, 1]
+        self.len = 0
+        self.odom_maj = False
 
         # rospy.Subscriber("/result_position", Odometry,self.position_callback)
         # rospy.Timer(rospy.Duration(TIMER_ALMOTION), self.timer_callback)
-        self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]], [
-            "ini", "child", [0, 0, 0], [0, 0, 0, 1]]]
+
+        # This self.vect_tf does everything, it needs to
+        # keep the order: vect_tf[0]=PLAN
+        #                vect_tf[1]=ROBOT1
+        #                vect_tf[2]=ROBOT2
+        #                       ...
+        #                vect_tf[n]=my_mark_12
+
+        self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]]
+                        for i in range(0, len(self.namespace) + 1)]
+
         rospy.Subscriber(
             "/cam0/visualization_marker", Marker, self.publish_tf)
 
+        # rospy.Subscriber(
+        #     self.namespace[0] + "/joint_states",
+        #     JointState, self.joint_state_callback(self.namespace[0]))
+
         rospy.Subscriber(
-            "/joint_states", JointState, self.joint_state_callback)
+            "robot1/joint_states",
+            JointState, self.joint_state_callback)
+
+        for i in range(0, len(self.namespace)):
+            rospy.Subscriber(
+                self.namespace[i] + "/joint_states",
+                JointState, self.joint_state_callback)
+
         # self.vect_tf = [CAMERA_NAME, [0, 0, 0], [0, 0, 0, 1]]
 
         rospy.Service(
@@ -191,9 +217,6 @@ class ToolsPepper:
         rospy.Service(
             'reset_odom', Empty, self.reset_odom)
 
-        self.len = 0
-        self.odom_maj = False
-
     # mais doit marcer ac launch init et relaunch le track no pepper
 
     def joint_state_callback(self, data):
@@ -202,33 +225,36 @@ class ToolsPepper:
                 or not, so it is called whenever the joints are updated)
             => the odometry is relative to the frame base_link
         """
-        if self.link_to_robot == True:
-            while self.odom_maj == False:
 
-                # the odometry depends on where we start the robot, this step
-                # is to save the transformation between the odometry data
-                # and our map. The "while" function is because we need
-                # to publish the tf several times, to make sure that you're
-                # repeatedly publishing the positions of the frames so
-                # that tf can correctly interpolate
-                try:
-                    (self.trans_o_map,
-                     self.rot_o_map) = self.listener.lookupTransform(
-                        "map", "odom", rospy.Time(0))
+        frame = data.header.frame_id
+        # ns = frame.split("/")[0]
+        # if self.link_to_robot == True:
+        #     while self.odom_maj == False:
 
-                    self.odom_maj = True
-                except Exception, exc:
-                    print " waiting for tf..."
-                    print exc
-            (trans_odom, rot_odom) = self.listener.lookupTransform(
-                "odom", "base_link", rospy.Time(0))
-            self.broadcaster.sendTransform(
-                self.trans_o_map, self.rot_o_map, rospy.Time.now(),
-                "/tf_odom_to_map", "/map")
-            self.broadcaster.sendTransform(
-                trans_odom, rot_odom, rospy.Time.now(),
-                "/tf_odom_to_baselink", "/tf_odom_to_map")
-            # print "tot_calc", tot_trans, tot_rot
+        # the odometry depends on where we start the robot, this step
+        # is to save the transformation between the odometry data
+        # and our map. The "while" function is because we need
+        # to publish the tf several times, to make sure that you're
+        # repeatedly publishing the positions of the frames so
+        # that tf can correctly interpolate
+        #         try:
+        #             (self.trans_o_map,
+        #              self.rot_o_map) = self.listener.lookupTransform(
+        #                 "map", ns + "/odom", rospy.Time(0))
+        #             self.odom_maj = True
+        #         except Exception, exc:
+        #             print " waiting for tf..."
+        #             print exc
+
+        #     (trans_odom, rot_odom) = self.listener.lookupTransform(
+        #         ns + "/odom", ns + "/base_link", rospy.Time(0))
+        #     self.broadcaster.sendTransform(
+        #         self.trans_o_map, self.rot_o_map, rospy.Time.now(),
+        #         ns + "/tf_odom_to_map", "/map")
+        #     self.broadcaster.sendTransform(
+        #         trans_odom, rot_odom, rospy.Time.now(),
+        #         ns + "/tf_odom_to_baselink", ns + "/tf_odom_to_map")
+        # print "tot_calc", tot_trans, tot_rot
 
     def publish_tf(self, data):
         """
@@ -238,7 +264,6 @@ class ToolsPepper:
         In this function we put things that need to be looped ( as
         publish tf or calcul speed )
         """
-
         for i in range(len(self.vect_tf)):
             self.broadcaster.sendTransform(
                 self.vect_tf[i][2], self.vect_tf[i][3], rospy.Time.now(),
@@ -272,23 +297,57 @@ class ToolsPepper:
             (run >>rosrun tf view_frames for more info)
         """
         try:
-
             # get the relation to set the link between base_link and
             # our map
-            name = str(self.vect_tf[1][0]).split("/")
-            robot_part = name[1]
-            (trans, rot) = self.listener.lookupTransform(
-                robot_part, "base_link", rospy.Time(0))
-            # ou devrait donc etre notre base_link par rapport a notre mark: on
-            # cree un base_link "virtuel"
-            self.broadcaster.sendTransform(
-                trans, rot, rospy.Time.now(),
-                "/mon_tf/base_link", "/mon_tf/" + robot_part)
-            # comment est notre base_link virtuel par rapport a notre map?
-            (trans_fin, rot_fin) = self.listener.lookupTransform(
-                "mon_tf/base_link", MAP, rospy.Time(0))
-            self.broadcaster.sendTransform(
-                trans_fin, rot_fin, rospy.Time.now(), MAP, "/base_link")
+            for i in range(0, len(self.namespace)):
+                #name = str(self.vect_tf[1][0]).split("/")
+                name = self.namespace[i]
+                # we split because we need to know where
+                # is the robot_part relative
+                # to the baselink ( the true one )
+                # and to mix it with our supposed
+                # robot part (my_tf/robotpart, seen
+                # with mark_tracker): we want to
+                # remove the "my_tf/" but keep the namespace
+
+                # if there is a namespace, len = 3 , else len = 2
+                #namespace = ""
+                # if len(name) == 3:
+                # namespace = name[1] + "/"
+                # maj du vect de namespace ( permet au pg de savoir cb1 de
+                # robots tournent en meme temps, utile pour publish l'odom
+                # relative a notre plan de chaque robot )
+                # exist = False
+                # for i in range(0, len(self.namespace)):
+                #     if namespace == self.namespace[i]:
+                #         exist = True
+                # if exist == False:  # ie if not already existing
+                #     self.namespace.append(namespace)
+
+                #robot_part = namespace + name[len(name) - 1]
+                # print self.vect_tf
+                robot_split = self.vect_tf[i + 1][0].split("/")
+                robot_part = robot_split[1] + "/" + robot_split[2]
+                # print "oooooooo", robot_part
+
+                (trans, rot) = self.listener.lookupTransform(
+                    robot_part, self.namespace[i] + "/base_link", rospy.Time(0))
+
+                # ou devrait donc etre notre base_link par rapport a notre mark: on
+                # cree un base_link "virtuel"
+
+                self.broadcaster.sendTransform(
+                    trans, rot, rospy.Time.now(),
+                    "mon_tf/" + self.namespace[i] + "/base_link",
+                    self.vect_tf[i + 1][0])
+
+                # comment est notre base_link virtuel par rapport a notre map?
+                (trans_fin, rot_fin) = self.listener.lookupTransform(
+                    "mon_tf/" + self.namespace[i] + "/base_link", MAP, rospy.Time(0))
+
+                self.broadcaster.sendTransform(
+                    trans_fin, rot_fin, rospy.Time.now(),
+                    MAP, self.namespace[i] + "/base_link")
 
         except Exception, exc:
             print " waiting for tf..."
@@ -379,7 +438,7 @@ class ToolsPepper:
 
             return True
         except Exception, exc:
-            print " waiting fsssor tf..."
+            print " waiting for tf..."
             print exc
 
     def where_is(self, req):
@@ -421,13 +480,10 @@ class ToolsPepper:
             self.broadcaster.sendTransform(
                 [req.x, req.y, 0], quat, rospy.Time.now(),
                 "/mon_tf/mygoal", MAP)
-            print "1111"
             # equivaut a un changement de repere
             (trans, rot) = self.listener.lookupTransform("/base_footprint",
                                                          "/mon_tf/mygoal",
                                                          rospy.Time(0))
-
-            print "222"
             return(trans, rot, True)
         except Exception, exc:
             print " waiting for tf..."
@@ -441,8 +497,7 @@ class ToolsPepper:
         return: True if new or False if overwrited a mark
         """
         try:
-            # To be sure to listen to the right thing
-            time.sleep(TIME_BROADCAST_LISTEN)
+
             marker = MARKER_NAME + str(req.marknumber)
             my_mark_publish = '/my_mark_publish' + str(req.marknumber)
             trans, rot = self.listener.lookupTransform(
@@ -491,8 +546,9 @@ class ToolsPepper:
         """
         chdir(req.path)  # to put
         temp_vect = []
-        temp_vect.append(self.vect_tf[0])
-        temp_vect.append(self.vect_tf[1])
+        for i in range(0, len(self.namespace) + 1):
+            temp_vect.append(self.vect_tf[i])
+        # temp_vect.append(self.vect_tf[1])
         fichier = numpy.genfromtxt(FILE_SAVED_MARK, delimiter=' ', dtype=None)
         if fichier.ndim == 0:
             fichier = fichier.ravel()
@@ -503,32 +559,48 @@ class ToolsPepper:
             temp_vect.append(toadd)
         # print temp_vect
         self.vect_tf = temp_vect
+
         return LoadMarkResponse(True)
 
     def load_init(self, req):
         """
         if req.init=0, we initialize the plan with the file
-        "saved_init_plan.txt" is. if req.init=1, we initialize the relation
+        "saved_init_plan.txt". If req.init=1, we initialize the relation
          between the mark and the robot with "saved_mark_to_robot.txt"
 
+         the relation is saved in a vector, published on the clock
+         of /visualization_marker
+
         """
-        if req.init == 0:
-            indice = 0
-            doc = FILE_SAVED_INIT_PLAN
-        if req.init == 1:
-            indice = 1
-            doc = FILE_SAVED_MARK_TO_ROBOT
-            self.link_to_robot = True
 
         chdir(req.path)
-        fichier = numpy.genfromtxt(
-            doc, delimiter=' ', dtype=None)
-        fichier = fichier.ravel()
-        toadd = [fichier[0][0], fichier[0][1],
-                 [fichier[0][i] for i in range(2, 5)],
-                 [fichier[0][i] for i in range(5, 9)]]
-        self.vect_tf[indice] = toadd
-        return LoadInitResponse(True)
+        # to init the plan
+        if req.init == 0:
+            doc = FILE_SAVED_INIT_PLAN
+
+            fichier = numpy.genfromtxt(
+                doc, delimiter=' ', dtype=None)
+            fichier = fichier.ravel()
+            toadd = [fichier[0][0], fichier[0][1],
+                     [fichier[0][i] for i in range(2, 5)],
+                     [fichier[0][i] for i in range(5, 9)]]
+            self.vect_tf[0] = toadd
+            return LoadInitResponse(True)
+        # to publish the relation between the mark and the robot
+        # this step is linking the tf tree of pepper with the tf of our plan
+        if req.init == 1:
+            for k in range(0, len(self.namespace)):
+                self.link_to_robot = True
+                doc = FILE_SAVED_MARK_TO_ROBOT + self.namespace[k] + ".txt"
+
+                fichier = numpy.genfromtxt(
+                    doc, delimiter=' ', dtype=None)
+                fichier = fichier.ravel()
+                toadd = [fichier[0][0], fichier[0][1],
+                         [fichier[0][i] for i in range(2, 5)],
+                         [fichier[0][i] for i in range(5, 9)]]
+                self.vect_tf[k + 1] = toadd
+            return LoadInitResponse(True)
 
     def init_track_speed(self, req):
         """
@@ -589,22 +661,28 @@ def main(args):
     rospy.init_node('tools_pepper', anonymous=True)
 
     value = args[1]
+    namespace = []
+    if len(args) > 2:
+        for i in range(2, len(args) - 2):
+            namespace.append(args[i])
+            print namespace
+    else:
+        namespace = [""]
+
+    CAMERA_NAME = "axis_camera"
+    # ROBOT_REF = "base_link"
+    ROBOT_FOOT = "base_footprint"
+    MAP = "/map"
+    FILE_SAVED_MARK = "saved_mark.txt"
+    FILE_SAVED_INIT_PLAN = "saved_init_plan.txt"
+    FILE_SAVED_MARK_TO_ROBOT = "saved_mark_to_robot.txt"
+    TIMER = 0.2
+    # MARKER_NAME = "4x4_"
+    MARKER_NAME = "ar_marker_"
+    NAMESPACE = ["robot1"]
+
     chdir(value)
-    # rospy.loginfo(
-    #     'Parameter %s has value %s', rospy.resolve_name('~foo'), value)
-
-    # value = rospy.get_param('path')
-    # print "valuuue", value
-    #full_name = rospy.search_param()
-    # print full_name
-    # if full_name != None:
-    #     path = rospy.get_param(full_name, "path")
-    # else:
-    #     path = "else"
-
-   # print "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", path
-
-    ToolsPepper()
+    ToolsPepper(namespace)
 
     try:
         rospy.spin()

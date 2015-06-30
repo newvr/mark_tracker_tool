@@ -19,9 +19,17 @@
  	</node>
  	
  	
+	
+<!--   *********************** Server *************   -->
+ 	
  	<arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
 	
-	<node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path)" />
+	<node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="False" args="$(arg path)" />
+	
+	
+	
+<!--   *********************** rviz *************   -->
+	
 	
 	
 	<arg name="rviz_config" default="my_settings.rviz" />
