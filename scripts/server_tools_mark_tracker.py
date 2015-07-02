@@ -170,8 +170,10 @@ class ToolsPepper:
         #                       ...
         #                vect_tf[n]=my_mark_12
 
-        self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]]
-                        for i in range(0, len(self.namespace) + 1)]
+        self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]]]
+##
+        for i in range(0, len(self.namespace)):
+            self.vect_tf.append(["parent", "child", [0, 0, 0], [0, 0, 0, 1]])
 
         rospy.Subscriber(
             "/cam0/visualization_marker", Marker, self.publish_tf)
@@ -226,34 +228,36 @@ class ToolsPepper:
             => the odometry is relative to the frame base_link
         """
 
+        # juste sur un obot
+
         frame = data.header.frame_id
-        # ns = frame.split("/")[0]
-        # if self.link_to_robot == True:
-        #     while self.odom_maj == False:
+        ns = frame.split("/")[0]
+        if self.link_to_robot == True:
+            while self.odom_maj == False:
 
-        # the odometry depends on where we start the robot, this step
-        # is to save the transformation between the odometry data
-        # and our map. The "while" function is because we need
-        # to publish the tf several times, to make sure that you're
-        # repeatedly publishing the positions of the frames so
-        # that tf can correctly interpolate
-        #         try:
-        #             (self.trans_o_map,
-        #              self.rot_o_map) = self.listener.lookupTransform(
-        #                 "map", ns + "/odom", rospy.Time(0))
-        #             self.odom_maj = True
-        #         except Exception, exc:
-        #             print " waiting for tf..."
-        #             print exc
+                # the odometry depends on where we start the robot, this step
+                # is to save the transformation between the odometry data
+                # and our map. The "while" function is because we need
+                # to publish the tf several times, to make sure that you're
+                # repeatedly publishing the positions of the frames so
+                # that tf can correctly interpolate
+                try:
+                    (self.trans_o_map,
+                     self.rot_o_map) = self.listener.lookupTransform(
+                        "map", ns + "/odom", rospy.Time(0))
+                    self.odom_maj = True
+                except Exception, exc:
+                    print " waiting for tf..."
+                    print exc
 
-        #     (trans_odom, rot_odom) = self.listener.lookupTransform(
-        #         ns + "/odom", ns + "/base_link", rospy.Time(0))
-        #     self.broadcaster.sendTransform(
-        #         self.trans_o_map, self.rot_o_map, rospy.Time.now(),
-        #         ns + "/tf_odom_to_map", "/map")
-        #     self.broadcaster.sendTransform(
-        #         trans_odom, rot_odom, rospy.Time.now(),
-        #         ns + "/tf_odom_to_baselink", ns + "/tf_odom_to_map")
+            (trans_odom, rot_odom) = self.listener.lookupTransform(
+                ns + "/odom", ns + "/base_link", rospy.Time(0))
+            self.broadcaster.sendTransform(
+                self.trans_o_map, self.rot_o_map, rospy.Time.now(),
+                ns + "/tf_odom_to_map", "/map")
+            self.broadcaster.sendTransform(
+                trans_odom, rot_odom, rospy.Time.now(),
+                ns + "/tf_odom_to_baselink", ns + "/tf_odom_to_map")
         # print "tot_calc", tot_trans, tot_rot
 
     def publish_tf(self, data):
@@ -300,7 +304,7 @@ class ToolsPepper:
             # get the relation to set the link between base_link and
             # our map
             for i in range(0, len(self.namespace)):
-                #name = str(self.vect_tf[1][0]).split("/")
+                # name = str(self.vect_tf[1][0]).split("/")
                 name = self.namespace[i]
                 # we split because we need to know where
                 # is the robot_part relative
@@ -311,7 +315,7 @@ class ToolsPepper:
                 # remove the "my_tf/" but keep the namespace
 
                 # if there is a namespace, len = 3 , else len = 2
-                #namespace = ""
+                # namespace = ""
                 # if len(name) == 3:
                 # namespace = name[1] + "/"
                 # maj du vect de namespace ( permet au pg de savoir cb1 de
@@ -324,7 +328,7 @@ class ToolsPepper:
                 # if exist == False:  # ie if not already existing
                 #     self.namespace.append(namespace)
 
-                #robot_part = namespace + name[len(name) - 1]
+                # robot_part = namespace + name[len(name) - 1]
                 # print self.vect_tf
                 robot_split = self.vect_tf[i + 1][0].split("/")
                 robot_part = robot_split[1] + "/" + robot_split[2]
@@ -338,16 +342,18 @@ class ToolsPepper:
 
                 self.broadcaster.sendTransform(
                     trans, rot, rospy.Time.now(),
-                    "mon_tf/" + self.namespace[i] + "/base_link",
+                    self.namespace[i] + "/base_link",
                     self.vect_tf[i + 1][0])
 
                 # comment est notre base_link virtuel par rapport a notre map?
-                (trans_fin, rot_fin) = self.listener.lookupTransform(
-                    "mon_tf/" + self.namespace[i] + "/base_link", MAP, rospy.Time(0))
+                # (trans_fin, rot_fin) = self.listener.lookupTransform(
+                #     MAP, "mon_tf/" + self.namespace[i] + "/base_link",
+                #     rospy.Time(0))
 
-                self.broadcaster.sendTransform(
-                    trans_fin, rot_fin, rospy.Time.now(),
-                    MAP, self.namespace[i] + "/base_link")
+                # self.broadcaster.sendTransform(
+                #     trans_fin, rot_fin, rospy.Time.now(), self.namespace[
+                #         i] + "/base_link",
+                #     MAP)
 
         except Exception, exc:
             print " waiting for tf..."
@@ -362,7 +368,9 @@ class ToolsPepper:
             enable the trackin in our plan.
         """
         try:
+
             marker = MARKER_NAME + str(req.marknumber)
+            print "marker", marker
             trans, rot = self.listener.lookupTransform(
                 marker, '/map', rospy.Time(0))
             self.vect_tf[0] = [CAMERA_NAME, MAP, trans, rot]
@@ -370,9 +378,10 @@ class ToolsPepper:
             if req.permanent == True:
                 mon_fichier = open(FILE_SAVED_INIT_PLAN, "w")
                 message = write_message([self.vect_tf[0]])
+                print "message", message
                 mon_fichier.write(message)
                 mon_fichier.close()
-
+            print self.vect_tf
             return InitPlanResponse(True)
         except Exception, exc:
             print exc
@@ -390,7 +399,8 @@ class ToolsPepper:
         self.link_to_robot = True
 
         if req.permanent == True:
-            mon_fichier = open(FILE_SAVED_MARK_TO_ROBOT, "w")
+            name = req.robotpart.split("/")[0]
+            mon_fichier = open(FILE_SAVED_MARK_TO_ROBOT + name, "w")
             message = write_message([self.vect_tf[1]])
             mon_fichier.write(message)
             mon_fichier.close()
@@ -589,6 +599,7 @@ class ToolsPepper:
         # to publish the relation between the mark and the robot
         # this step is linking the tf tree of pepper with the tf of our plan
         if req.init == 1:
+            print len(self.namespace)
             for k in range(0, len(self.namespace)):
                 self.link_to_robot = True
                 doc = FILE_SAVED_MARK_TO_ROBOT + self.namespace[k] + ".txt"

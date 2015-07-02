@@ -1,0 +1,71 @@
+<launch>
+
+	
+	
+
+<!-- ############## launch camera ############ -->
+	<include file="$(find axis_cam_modified)/launch/axis_basics.launch"/>
+	
+	
+	
+	
+<!--   *********************** Module AR_track_alvar *************   -->
+	
+	<arg name="marker_size" default="12.0" />		# plus gros TODO print  
+	<arg name="max_new_marker_error" default="0.08" />
+	<arg name="max_track_error" default="0.2" />
+	<arg name="cam_image_topic0" default="image_raw" />
+	<arg name="cam_info_topic0" default="/camera_info" />		
+	<arg name="output_frame0" default="/axis_camera" />
+
+	<node name="ar_track_alvar0" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic0) $(arg cam_info_topic0) $(arg output_frame0)" >
+	<remap from="/visualization_marker" to="cam0/visualization_marker"/>
+ 	</node>
+ 	
+ 	
+	
+	
+  <arg name="namespace1" default="monica" />
+  <arg name="nao_ip1" default="$(optenv NAO_IP 10.0.206.111)" />
+   
+   <!-- BEGIN ROBOT 1-->
+  <group ns="$(arg namespace1)">
+    <param name="tf_prefix" value="$(arg namespace1)" />
+    <include file="$(find pepper_bringup)/launch/pepper.launch"/>
+  </group>
+  
+  
+   <!-- BEGIN ROBOT 2 -->
+   
+<arg name="nao_ip2" default="$(optenv NAO_IP 10.0.206.111)" />
+<arg name="namespace2" default="robot2" />
+
+  <group ns="$(arg namespace2)">
+    <param name="tf_prefix" value="$(arg namespace2)" />
+    <param name="tf_prefix" value="$(arg namespace2)" />
+    <param name="tf_prefix" value="$(arg namespace2)" />
+    <include file="$(find pepper_bringup)/launch/pepper.launch"/>
+  </group>
+	
+    
+   <!--
+   Add all the "$(arg namespace1)" in args of server_tools_mark_server otherwise it wont listen to the good topics
+   Plus this is launching the server, so if it was already running, it will close it and run a new one ( so the init data will need to be redone ) 
+    -->
+    
+    <node name="invert_tf_odom_parent" pkg="mark_tracker_tools" type="invert_tf_odom_parent.py" respawn="True"  />
+    
+    <!-- BEGIN SERVER-->
+
+  <arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
+  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path) $(arg namespace1) $(arg namespace2)" />
+	
+
+  
+  
+  
+  
+
+</launch>
+
+
