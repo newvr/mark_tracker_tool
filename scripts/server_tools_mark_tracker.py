@@ -4,6 +4,7 @@ import rospy
 import numpy
 import time
 import sys
+from gazebo_msgs.msg import ModelState
 from visualization_msgs.msg import Marker
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Empty, EmptyResponse
@@ -174,7 +175,7 @@ class ToolsPepper:
 ##
         for i in range(0, len(self.namespace)):
             self.vect_tf.append(
-                ["parent", namespace[i], [0, 0, 0], [0, 0, 0, 1]])
+                ["robot" + str(i), namespace[i], [0, 0, 0], [0, 0, 0, 1]])
 
         rospy.Subscriber(
             "/cam0/visualization_marker", Marker, self.publish_tf)
@@ -182,6 +183,8 @@ class ToolsPepper:
         # rospy.Subscriber(
         #     self.namespace[0] + "/joint_states",
         #     JointState, self.joint_state_callback(self.namespace[0]))
+        self.pub = rospy.Publisher(
+            '/gazebo/set_model_state', ModelState, queue_size=10)
 
         rospy.Subscriber(
             "robot1/joint_states",
@@ -296,6 +299,28 @@ class ToolsPepper:
         if self.link_to_robot == True:
             self.func_link_to_robot()
         # print 'ddddddddddddddddddddddddddddddddddd', self.vect_tf
+
+        # TODOOOOOOO
+
+            try:
+                (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
+                    self.namespace[0] + "/torso", MAP, rospy.Time(0))
+
+                position_to_pub = ModelState()
+                position_to_pub.model_name = "virtual_pepper"
+                position_to_pub.reference_frame = "world"
+                position_to_pub.pose.position.x = trans_to_pub[0]
+                position_to_pub.pose.position.y = trans_to_pub[1]
+                position_to_pub.pose.position.z = trans_to_pub[2]
+
+                position_to_pub.pose.orientation.x = rot_to_pub[0]
+                position_to_pub.pose.orientation.y = rot_to_pub[1]
+                position_to_pub.pose.orientation.z = rot_to_pub[2]
+                position_to_pub.pose.orientation.w = rot_to_pub[3]
+
+                self.pub.publish(position_to_pub)
+            except Exception, exc:
+                a = 1
 
     def func_link_to_robot(self):
         """
