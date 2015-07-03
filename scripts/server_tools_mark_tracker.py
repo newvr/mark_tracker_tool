@@ -16,7 +16,7 @@ import functools
 
 CAMERA_NAME = "axis_camera"
 # ROBOT_REF = "base_link"
-ROBOT_FOOT = "base_footprint"
+ROBOT_FOOT = "/base_footprint"
 MAP = "/map"
 FILE_SAVED_MARK = "saved_mark.txt"
 FILE_SAVED_INIT_PLAN = "saved_init_plan.txt"
@@ -45,7 +45,7 @@ class State:
 
     """
     frame
-    timeold
+    time
     positionold
     rotationold
     timenew
@@ -155,10 +155,10 @@ class ToolsPepper:
         self.listener = tf.TransformListener()
         self.broadcaster = tf.TransformBroadcaster()
         self.state_speed_calcul = State(" ")
-        self.trans_o_map = [0, 0, 0]
-        self.rot_o_map = [0, 0, 0, 1]
+        self.trans_o_map = [[0, 0, 0]for i in range(len(self.namespace))]
+        self.rot_o_map = [[0, 0, 0, 1]for i in range(len(self.namespace))]
         self.len = 0
-        self.odom_maj = False
+        self.odom_maj = [False for i in range(len(self.namespace))]
 
         # rospy.Subscriber("/result_position", Odometry,self.position_callback)
         # rospy.Timer(rospy.Duration(TIMER_ALMOTION), self.timer_callback)
@@ -173,7 +173,8 @@ class ToolsPepper:
         self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]]]
 ##
         for i in range(0, len(self.namespace)):
-            self.vect_tf.append(["parent", "child", [0, 0, 0], [0, 0, 0, 1]])
+            self.vect_tf.append(
+                ["parent", namespace[i], [0, 0, 0], [0, 0, 0, 1]])
 
         rospy.Subscriber(
             "/cam0/visualization_marker", Marker, self.publish_tf)
@@ -227,38 +228,44 @@ class ToolsPepper:
                 or not, so it is called whenever the joints are updated)
             => the odometry is relative to the frame base_link
         """
-
-        # juste sur un obot
-
         frame = data.header.frame_id
         ns = frame.split("/")[0]
-        if self.link_to_robot == True:
-            while self.odom_maj == False:
+        for i in range(0, len(self.namespace)):
+            if ns == self.namespace[i]:
+                if self.odom_maj[i] == False:
+                    while self.odom_maj[i] == False:
 
-                # the odometry depends on where we start the robot, this step
-                # is to save the transformation between the odometry data
-                # and our map. The "while" function is because we need
-                # to publish the tf several times, to make sure that you're
-                # repeatedly publishing the positions of the frames so
-                # that tf can correctly interpolate
-                try:
-                    (self.trans_o_map,
-                     self.rot_o_map) = self.listener.lookupTransform(
-                        "map", ns + "/odom", rospy.Time(0))
-                    self.odom_maj = True
-                except Exception, exc:
-                    print " waiting for tf..."
-                    print exc
+                        # the odometry depends on where we start the robot, this
+                        # step
+                        # is to save the transformation between the odometry data
+                        # and our map. The "while" function is because we need
+                        # to publish the tf several times, to make sure that you're
+                        # repeatedly publishing the positions of the frames so
+                        # that tf can correctly interpolate
+                        try:
+                            (self.trans_o_map[i],
+                             self.rot_o_map[i]) = self.listener.lookupTransform(
+                                "map", ns + "/odom", rospy.Time(0))
+                            # print self.trans_o_map, self .rot_o_map
+                            self.odom_maj[i] = True
+                        except Exception, exc:
+                            continue
+                            # print " waiting for tf..."
+                            # print exc
 
-            (trans_odom, rot_odom) = self.listener.lookupTransform(
-                ns + "/odom", ns + "/base_link", rospy.Time(0))
-            self.broadcaster.sendTransform(
-                self.trans_o_map, self.rot_o_map, rospy.Time.now(),
-                ns + "/tf_odom_to_map", "/map")
-            self.broadcaster.sendTransform(
-                trans_odom, rot_odom, rospy.Time.now(),
-                ns + "/tf_odom_to_baselink", ns + "/tf_odom_to_map")
-        # print "tot_calc", tot_trans, tot_rot
+                else:
+                    (trans_odom, rot_odom) = self.listener.lookupTransform(
+                        ns + "/odom", ns + "/base_link", rospy.Time(0))
+                    self.broadcaster.sendTransform(
+                        self.trans_o_map[i], self.rot_o_map[
+                            i], rospy.Time.now(),
+                        ns + "/tf_odom_to_map", "/map")
+                    self.broadcaster.sendTransform(
+                        trans_odom, rot_odom, rospy.Time.now(),
+                        ns + "/tf_odom_to_baselink", ns + "/tf_odom_to_map")
+                    # print "tot_calc", tot_trans, tot_rot
+
+           # if self.link_to_robot == True:
 
     def publish_tf(self, data):
         """
@@ -288,6 +295,7 @@ class ToolsPepper:
 
         if self.link_to_robot == True:
             self.func_link_to_robot()
+        # print 'ddddddddddddddddddddddddddddddddddd', self.vect_tf
 
     def func_link_to_robot(self):
         """
@@ -356,11 +364,11 @@ class ToolsPepper:
                 #     MAP)
 
         except Exception, exc:
-            print " waiting for tf..."
-            print exc
+            a = 1
+            # print " waiting for tf.func_link_to_robot.."
+            # print exc
 
-
-# ============================= ROS SERVICES ======================
+            # ============================= ROS SERVICES ======================
     def init_plan(self, req):
         """
             add in vect_mark[0] the coordinates of the camera deduced from
@@ -384,15 +392,17 @@ class ToolsPepper:
             print self.vect_tf
             return InitPlanResponse(True)
         except Exception, exc:
-            print exc
+            print "init_plan", exc
 
     def init_mark_to_robot(self, req):
         """
+           arguments: int64 marknumber,float64 x,float64 y,float64 theta
+            string robotpart,bool permanent
            link the mark to a part of the robot, then every frames'coordinates
            would be accessible in our plan
         """
-        past1sec = rospy.Time.now() - rospy.Duration(1.0)
-        timeout = rospy.Duration(4.0)
+        #past1sec = rospy.Time.now() - rospy.Duration(1.0)
+        #timeout = rospy.Duration(4.0)
         ret = False
         while ret != True:
             ret = self.init_mark_to_robot_publish_temporary(req)
@@ -415,10 +425,13 @@ class ToolsPepper:
             each frame_id at different times a lookup will never succeed
         """
         try:
+            print req
+
+            ns = req.robotpart.split("/")[0]
             marker = MARKER_NAME + str(req.marknumber)
             (trans_foot_to_body,
              rot_foot_to_body) = self.listener.lookupTransform(
-                ROBOT_FOOT, req.robotpart, rospy.Time(0))
+                ns + ROBOT_FOOT, req.robotpart, rospy.Time(0))
             # permet de prendre en compte l'inclinaison de la marque par
             # rapport a son positionnement sur la tete
             # jusqua present on ne sait pas ou se situe le robot dans notre
@@ -428,27 +441,39 @@ class ToolsPepper:
             quaternion = quaternion_from_euler(0, 0, req.theta)
             self.broadcaster.sendTransform(
                 (req.x, req.y, 0), quaternion, rospy.Time.now(),
-                "mon_tf/" + ROBOT_FOOT, MAP)
+                ns + "mon_tf/" + ROBOT_FOOT, MAP)
             self.listener.waitForTransform(
-                "mon_tf/" + ROBOT_FOOT, MAP, rospy.Time(0), rospy.Duration(1.0))
+                ns + "mon_tf/" + ROBOT_FOOT,
+                MAP, rospy.Time(0), rospy.Duration(1.0))
             # donc notre bodypart serait ici par rapport a la map
             self.broadcaster.sendTransform(
                 trans_foot_to_body, rot_foot_to_body, rospy.Time.now(),
-                "mon_tf/" + req.robotpart, "mon_tf/" + ROBOT_FOOT)
+                "mon_tf/" + req.robotpart, ns + "mon_tf/" + ROBOT_FOOT)
             self.listener.waitForTransform(
                 marker, "mon_tf/" + req.robotpart,
                 rospy.Time(0), rospy.Duration(1.0))
             (trans_marker_to_body,
                 rot_marker_to_body) = self.listener.lookupTransform(
                 marker, "mon_tf/" + req.robotpart, rospy.Time(0))
-            self.vect_tf[1] = ["mon_tf/" + req.robotpart, marker,
-                               trans_marker_to_body, rot_marker_to_body]
+
+            for i in range(0, len(self.vect_tf)):
+                print "ooooooooooooooooooooooooooOOOOOOOOOOOOOOOOOOOOOOOOoooooooooooooooooooooo"
+                print i
+                print ns
+                print self.vect_tf
+                if ns == self.vect_tf[i][1]:
+                    print "entreeeeeeeeeeeeeeeeeeeee"
+                    self.vect_tf[i] = [
+                        "mon_tf/" + req.robotpart, marker,
+                        trans_marker_to_body, rot_marker_to_body]
+
+            print self.vect_tf
 
             # to init the right odom
 
             return True
         except Exception, exc:
-            print " waiting for tf..."
+            print " waiting fjhhhhhhhor tf..."
             print exc
 
     def where_is(self, req):
@@ -640,7 +665,9 @@ class ToolsPepper:
             mark_tracker. Passing self.odom_maj to True initalizes the odom
             to the base_link again
         """
-        self.odom_maj = False
+        self.odom_maj = []
+        for i in self.namespace:
+            self.odom_maj.append(False)
         return EmptyResponse()
 
 
