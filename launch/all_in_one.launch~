@@ -31,18 +31,19 @@
    
   <group ns="$(arg namespace1)">
     <param name="tf_prefix" value="$(arg namespace1)" />
-    <include file="$(find tools_tf)/launch/pepper.launch"/>
+    <include file="$(find mark_tracker_tools)/launch/pepper.launch"/>
   </group>
   
-   <!-- BEGIN ROBOT 2  -->
+   <!-- BEGIN ROBOT 2  
    
 <arg name="nao_ip2" default="$(optenv NAO_IP 10.0.206.111)" />
 <arg name="namespace2" default="robot2" />
 
   <group ns="$(arg namespace2)">
     <param name="tf_prefix" value="$(arg namespace2)" />
-    <include file="$(find tools_tf)/launch/pepper.launch"/>
+    <include file="$(find mark_tracker_tools)/launch/pepper.launch"/>
   </group>
+  -->
 	
     
    <!--
@@ -50,12 +51,12 @@
    Plus this is launching the server, so if it was already running, it will close it and run a new one ( so the init data will need to be redone ) 
     -->
     
-    <node name="invert_tf_odom_parent" pkg="tools_tf" type="invert_tf_odom_parent.py" respawn="True"  />
+    <node name="invert_tf_odom_parent" pkg="mark_tracker_tools" type="invert_tf_odom_parent.py" respawn="True"  />
     
     <!-- BEGIN SERVER-->
 
   <arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
-  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path) $(arg namespace1) $(arg namespace2)" />
+  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path) $(arg namespace1)" />
 	
 
   

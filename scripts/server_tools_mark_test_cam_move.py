@@ -13,6 +13,7 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from mark_tracker_tools.srv import *
 from os import chdir
 import functools
+from axis_camera.msg import Axis
 # -- variables magiques TODO
 
 CAMERA_NAME = "axis_camera"
@@ -185,10 +186,11 @@ class ToolsPepper:
         #     JointState, self.joint_state_callback(self.namespace[0]))
         self.pub = rospy.Publisher(
             '/gazebo/set_model_state', ModelState, queue_size=10)
-
         rospy.Subscriber(
             "robot1/joint_states",
             JointState, self.joint_state_callback)
+
+        self.axis_sub = rospy.Subscriber("/state", Axis, self.axis_cb)
 
         for i in range(0, len(self.namespace)):
             rospy.Subscriber(
@@ -321,6 +323,11 @@ class ToolsPepper:
                 self.pub.publish(position_to_pub)
             except Exception, exc:
                 a = 1
+
+    def self.axis_cb(self):
+        """
+            take the move of the camera into argument and publish the modification of the tf
+        """
 
     def func_link_to_robot(self):
         """

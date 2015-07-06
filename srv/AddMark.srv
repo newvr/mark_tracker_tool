@@ -1,4 +1,5 @@
 int64 marknumber
 bool permanent
+string path
 ---
 bool result

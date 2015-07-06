@@ -4,6 +4,7 @@ float64 y
 float64 theta
 string robotpart
 bool permanent
+string path
 ---
 
 bool result
