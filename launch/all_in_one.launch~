@@ -26,7 +26,7 @@
     <include file="$(find mark_tracker_tools)/launch/pepper.launch"/>
   </group>
   
-   <!-- BEGIN ROBOT 2  
+   <!-- BEGIN ROBOT 2  -->
    
 <arg name="nao_ip2" default="$(optenv NAO_IP 10.0.206.111)" />
 <arg name="namespace2" default="robot2" />
@@ -35,7 +35,7 @@
     <param name="tf_prefix" value="$(arg namespace2)" />
     <include file="$(find mark_tracker_tools)/launch/pepper.launch"/>
   </group>
-  -->
+  
 	
     
    <!--
@@ -48,21 +48,21 @@
     <!-- BEGIN SERVER-->
 
   <arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
-  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path) $(arg namespace1)" />
+  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path) $(arg namespace1) $(arg namespace2)" />
 	
 	
 
-  <!--call a service 
+  <!--call a service  -->
 
 <arg name="initial_pose_y" default="17.0" />
 
   <node pkg="mark_tracker_tools" type="init_mark0.sh" 
-    args="2 " 
+    args="4 /home/sfress/catkin_ws/src/norme" 
     name="timed_roslaunch" output="screen">
   </node>
 
   
-  -->
+ 
   
   
 

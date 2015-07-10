@@ -283,6 +283,27 @@ class ToolsPepper:
                 self.vect_tf[i][2], self.vect_tf[i][3], rospy.Time.now(),
                 self.vect_tf[i][0], self.vect_tf[i][1])
 
+            try:
+                (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
+                    MAP, self.namespace[i] + "/torso", rospy.Time(0))
+
+                position_to_pub = ModelState()
+                position_to_pub.model_name = self.namespace[
+                    i] + "/virtual_pepper"
+                position_to_pub.reference_frame = "world"
+                position_to_pub.pose.position.x = trans_to_pub[0]
+                position_to_pub.pose.position.y = trans_to_pub[1]
+                position_to_pub.pose.position.z = trans_to_pub[2]
+
+                position_to_pub.pose.orientation.x = rot_to_pub[0]
+                position_to_pub.pose.orientation.y = rot_to_pub[1]
+                position_to_pub.pose.orientation.z = rot_to_pub[2]
+                position_to_pub.pose.orientation.w = rot_to_pub[3]
+
+                self.pub.publish(position_to_pub)
+            except Exception, exc:
+                a = 1
+
         if self.len != len(self.vect_tf):  # PRINT a chaque ajout
             print"************"
             for k in range(len(self.vect_tf)):
@@ -301,26 +322,6 @@ class ToolsPepper:
         # print 'ddddddddddddddddddddddddddddddddddd', self.vect_tf
 
         # TODOOOOOOO
-
-            try:
-                (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
-                    MAP, self.namespace[0] + "/torso", rospy.Time(0))
-
-                position_to_pub = ModelState()
-                position_to_pub.model_name = "virtual_pepper"
-                position_to_pub.reference_frame = "world"
-                position_to_pub.pose.position.x = trans_to_pub[0]
-                position_to_pub.pose.position.y = trans_to_pub[1]
-                position_to_pub.pose.position.z = trans_to_pub[2]
-
-                position_to_pub.pose.orientation.x = rot_to_pub[0]
-                position_to_pub.pose.orientation.y = rot_to_pub[1]
-                position_to_pub.pose.orientation.z = rot_to_pub[2]
-                position_to_pub.pose.orientation.w = rot_to_pub[3]
-
-                self.pub.publish(position_to_pub)
-            except Exception, exc:
-                a = 1
 
     def func_link_to_robot(self):
         """
