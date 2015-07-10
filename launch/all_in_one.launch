@@ -16,28 +16,24 @@
 	<remap from="/visualization_marker" to="cam0/visualization_marker"/>
  	</node>
  	
-   <!-- BEGIN ROBOT 1-->
-	
-  <arg name="namespace1" default="monica" />
-  <arg name="nao_ip1" default="$(optenv NAO_IP 10.0.206.111)" />
-   
-  <group ns="$(arg namespace1)">
-    <param name="tf_prefix" value="$(arg namespace1)" />
-    <include file="$(find mark_tracker_tools)/launch/pepper.launch"/>
-  </group>
   
-   <!-- BEGIN ROBOT 2  -->
-   
-<arg name="nao_ip2" default="$(optenv NAO_IP 10.0.206.111)" />
-<arg name="namespace2" default="robot2" />
-
-  <group ns="$(arg namespace2)">
-    <param name="tf_prefix" value="$(arg namespace2)" />
-    <include file="$(find mark_tracker_tools)/launch/pepper.launch"/>
-  </group>
+  <!-- ADD A ROBOT --> 
   
-	
-    
+  <arg name="namespace" default="monica" />  
+  <node pkg="mark_tracker_tools" type="add_robot.sh" 
+    args="$(arg namespace) 10.0.206.111" 
+    name="launch_robot_$(arg namespace)" output="screen">
+  </node>
+  
+  <!-- ADD A ROBOT --> 
+  
+  <arg name="namespace2" default="robot2" />  
+  <node pkg="mark_tracker_tools" type="add_robot.sh" 
+    args="$(arg namespace2) 10.0.206.111" 
+    name="launch_robot_$(arg namespace2)" output="screen">
+  </node>
+  
+  
    <!--
    Add all the "$(arg namespace1)" in args of server_tools_mark_server otherwise it wont listen to the good topics
    Plus this is launching the server, so if it was already running, it will close it and run a new one ( so the init data will need to be redone ) 
@@ -48,7 +44,7 @@
     <!-- BEGIN SERVER-->
 
   <arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
-  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path) $(arg namespace1) $(arg namespace2)" />
+  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path) $(arg namespace) $(arg namespace2) " />
 	
 	
 
