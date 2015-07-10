@@ -14,7 +14,12 @@ from mark_tracker_tools.srv import *
 from os import chdir
 import functools
 from axis_camera.msg import Axis
+import math
 # -- variables magiques TODO
+
+
+base_name = "/axis_camera_maj"
+base_frame = "/axis_camera"
 
 CAMERA_NAME = "axis_camera"
 # ROBOT_REF = "base_link"
@@ -190,7 +195,7 @@ class ToolsPepper:
             "robot1/joint_states",
             JointState, self.joint_state_callback)
 
-        self.axis_sub = rospy.Subscriber("/state", Axis, self.axis_cb)
+        # self.axis_sub = rospy.Subscriber("/state", Axis, self.axis_cb)
 
         for i in range(0, len(self.namespace)):
             rospy.Subscriber(
@@ -324,10 +329,22 @@ class ToolsPepper:
             except Exception, exc:
                 a = 1
 
-    def self.axis_cb(self):
-        """
-            take the move of the camera into argument and publish the modification of the tf
-        """
+    # def axis_cb(self, data):
+    #     """
+    #         take the move of the camera into argument and publish the modification of the tf
+    #     """
+
+    # global broadcaster, base_frame, base_name
+    # il y avait un plus pi ici
+    #     pan = data.pan * math.pi / 180.
+    #     tilt = -data.tilt * math.pi / 180.
+    #     q = quaternion_from_euler(0, 0, pan)
+    #     now = rospy.Time.now()
+    #     self.broadcaster.sendTransform((0, 0, 0),
+    #                                    q, now, base_name + "/pan", base_frame)
+    #     q = quaternion_from_euler(0, tilt, 0)
+    #     self.broadcaster.sendTransform((0, 0, 0),
+    #                                    q, now, base_name, base_name + "/pan")
 
     def func_link_to_robot(self):
         """

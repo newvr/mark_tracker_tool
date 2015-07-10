@@ -2,7 +2,7 @@
 <!-- ############## launch camera ############ -->
 	<include file="$(find axis_cam_modified)/launch/axis_basics.launch"/>
 	
-		
+	
 <!--   *********************** Module AR_track_alvar *************   -->
 	
 	<arg name="marker_size" default="12.0" />		# plus gros TODO print  
@@ -16,6 +16,8 @@
 	<remap from="/visualization_marker" to="cam0/visualization_marker"/>
  	</node>
  	
+
+
    <!-- BEGIN ROBOT 1-->
 	
   <arg name="namespace1" default="monica" />
@@ -50,19 +52,9 @@
   <arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
   <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path) $(arg namespace1)" />
 	
-	
-
-  <!--call a service 
-
-<arg name="initial_pose_y" default="17.0" />
-
-  <node pkg="mark_tracker_tools" type="init_mark0.sh" 
-    args="2 " 
-    name="timed_roslaunch" output="screen">
-  </node>
 
   
-  -->
+  
   
   
 

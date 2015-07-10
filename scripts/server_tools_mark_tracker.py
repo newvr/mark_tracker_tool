@@ -408,11 +408,13 @@ class ToolsPepper:
                 marker, '/map', rospy.Time(0))
             self.vect_tf[0] = [CAMERA_NAME, MAP, trans, rot]
             print " plan intialized !"
+            print "euler", euler_from_quaternion(self.vect_tf[0][3])
             if req.permanent == True:
                 chdir(req.path)
                 mon_fichier = open(FILE_SAVED_INIT_PLAN, "w")
                 message = write_message([self.vect_tf[0]])
-                print "message", message
+                # print "message", message
+
                 mon_fichier.write(message)
                 mon_fichier.close()
             print self.vect_tf
@@ -427,8 +429,8 @@ class ToolsPepper:
            link the mark to a part of the robot, then every frames'coordinates
            would be accessible in our plan
         """
-        #past1sec = rospy.Time.now() - rospy.Duration(1.0)
-        #timeout = rospy.Duration(4.0)
+        # past1sec = rospy.Time.now() - rospy.Duration(1.0)
+        # timeout = rospy.Duration(4.0)
         ret = False
         while ret != True:
             ret = self.init_mark_to_robot_publish_temporary(req)
