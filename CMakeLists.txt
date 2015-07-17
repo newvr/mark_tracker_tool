@@ -63,9 +63,10 @@ find_package(catkin REQUIRED COMPONENTS
    LoadMark.srv
    LoadInit.srv
    InitTrackSpeed.srv
+   PublishObjToGazebo.srv
 
  )
- 
+
 
 ## Generate actions in the 'action' folder
  #add_action_files(

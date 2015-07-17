@@ -83,6 +83,7 @@ class State:
     def maj_state(self, postion, rotation):
         """
             save newer data in "new" and save the old ones in "old"
+            for speed calculus
         """
         if self.compteur == 3:
             self.time_old = self.time_new
@@ -172,7 +173,7 @@ class ToolsPepper:
         #                vect_tf[n]=my_mark_12
 
         self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]]]
-##
+        self.vect_gazebo = []
         for i in range(0, len(self.namespace)):
             self.vect_tf.append(
                 ["robot" + str(i), namespace[i], [0, 0, 0], [0, 0, 0, 1]])
@@ -223,6 +224,10 @@ class ToolsPepper:
         rospy.Service(
             'reset_odom', Empty, self.reset_odom)
 
+        rospy.Service(
+            'publish_obj_to_gazebo', PublishObjToGazebo,
+            self.publish_obj_to_gazebo)
+
     # mais doit marcer ac launch init et relaunch le track no pepper
 
     def joint_state_callback(self, data):
@@ -270,6 +275,37 @@ class ToolsPepper:
 
            # if self.link_to_robot == True:
 
+    def MAJ_link_head_mark(self, ns):
+        for i in range(0, len(self.namespace)):
+
+            (trans, rot) = self.listener.lookupTransform(
+                MAP, self.namespace[i] + "/base_footprint",
+                rospy.Time(0))
+            euler = euler_from_quaternion(rot)
+            print "euleeeee", euler
+
+    def publish_gazebo_model_state(self):
+
+        for i in range(0, len(self.vect_gazebo)):
+
+            (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
+                MAP, self.vect_gazebo[i][0], rospy.Time(0))
+
+            position_to_pub = ModelState()
+            position_to_pub.model_name = self.vect_gazebo[i][1]
+            position_to_pub.reference_frame = "world"
+            position_to_pub.pose.position.x = trans_to_pub[0]
+            position_to_pub.pose.position.y = trans_to_pub[1]
+            position_to_pub.pose.position.z = trans_to_pub[2]
+
+            position_to_pub.pose.orientation.x = rot_to_pub[0]
+            position_to_pub.pose.orientation.y = rot_to_pub[1]
+            position_to_pub.pose.orientation.z = rot_to_pub[2]
+            position_to_pub.pose.orientation.w = rot_to_pub[3]
+
+            self.pub.publish(position_to_pub)
+        print self.vect_gazebo
+
     def publish_tf(self, data):
         """
         publish tf contained in self.vect_tf
@@ -284,23 +320,8 @@ class ToolsPepper:
                 self.vect_tf[i][0], self.vect_tf[i][1])
 
             try:
-                (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
-                    MAP, self.namespace[i] + "/torso", rospy.Time(0))
+                self.publish_gazebo_model_state()
 
-                position_to_pub = ModelState()
-                position_to_pub.model_name = self.namespace[
-                    i] + "/virtual_pepper"
-                position_to_pub.reference_frame = "world"
-                position_to_pub.pose.position.x = trans_to_pub[0]
-                position_to_pub.pose.position.y = trans_to_pub[1]
-                position_to_pub.pose.position.z = trans_to_pub[2]
-
-                position_to_pub.pose.orientation.x = rot_to_pub[0]
-                position_to_pub.pose.orientation.y = rot_to_pub[1]
-                position_to_pub.pose.orientation.z = rot_to_pub[2]
-                position_to_pub.pose.orientation.w = rot_to_pub[3]
-
-                self.pub.publish(position_to_pub)
             except Exception, exc:
                 a = 1
 
@@ -458,6 +479,7 @@ class ToolsPepper:
             print req
 
             ns = req.robotpart.split("/")[0]
+
             marker = MARKER_NAME + str(req.marknumber)
             (trans_foot_to_body,
              rot_foot_to_body) = self.listener.lookupTransform(
@@ -500,7 +522,8 @@ class ToolsPepper:
             print self.vect_tf
 
             # to init the right odom
-
+            self.vect_gazebo.append([ns + "/torso",
+                                     ns + "/virtual_pepper"])
             return True
         except Exception, exc:
             print " waiting fjhhhhhhhor tf..."
@@ -657,6 +680,8 @@ class ToolsPepper:
         if req.init == 1:
             print len(self.namespace)
             for k in range(0, len(self.namespace)):
+                self.vect_gazebo.append([self.namespace[k] + "/torso",
+                                         self.namespace[k] + "/virtual_pepper"])
                 self.link_to_robot = True
                 doc = FILE_SAVED_MARK_TO_ROBOT + self.namespace[k] + ".txt"
 
@@ -687,6 +712,15 @@ class ToolsPepper:
         except Exception, e:
             print "init_track_speed() error, is ", req.frame, " saved?"
             print e
+
+    def publish_obj_to_gazebo(self, req):
+
+        mark = "ar_marker_" + str(req.marknumber)
+        quat = quaternion_from_euler(req.anglex, req.angley, req.anglez)
+        self.vect_tf.append([req.frame,
+                             mark, (req.x, req.y, req.z), quat])
+        self.vect_gazebo.append([req.frame, req.frame])
+        return PublishObjToGazeboResponse(True)
 
     def reset_odom(self, _):
         """
