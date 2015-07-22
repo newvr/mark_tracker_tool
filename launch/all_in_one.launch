@@ -41,14 +41,14 @@
 
     <node name="invert_tf_odom_parent" pkg="mark_tracker_tools" type="invert_tf_odom_parent.py" respawn="True"  />
 
-    <!-- BEGIN SERVER-->
+    <!-- BEGIN SERVER
 
   <arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
   <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path) $(arg namespace) " />
 
+-->
 
-
-  <!--call a service  -->
+  <!--call a service  
 
 <arg name="initial_pose_y" default="17.0" />
 
@@ -57,7 +57,7 @@
     name="timed_roslaunch" output="screen">
   </node>
 
-
+-->
 
 
 

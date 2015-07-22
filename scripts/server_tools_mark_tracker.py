@@ -236,6 +236,7 @@ class ToolsPepper:
                 or not, so it is called whenever the joints are updated)
             => the odometry is relative to the frame base_link
         """
+
         frame = data.header.frame_id
         ns = frame.split("/")[0]
         for i in range(0, len(self.namespace)):
@@ -275,14 +276,57 @@ class ToolsPepper:
 
            # if self.link_to_robot == True:
 
-    def MAJ_link_head_mark(self, ns):
+    def MAJ_link_head_mark(self):
         for i in range(0, len(self.namespace)):
-
             (trans, rot) = self.listener.lookupTransform(
                 MAP, self.namespace[i] + "/base_footprint",
                 rospy.Time(0))
-            euler = euler_from_quaternion(rot)
-            print "euleeeee", euler
+
+            (trans_r, rot_r) = self.listener.lookupTransform(
+                self.namespace[i] + "/base_footprint",
+                self.namespace[i] + "/HeadTouchFront_frame",
+                rospy.Time(0))
+
+            euler_foot = euler_from_quaternion(rot)
+            new_quat = quaternion_from_euler(
+                0.0, -0.04, euler_foot[2])
+            self.broadcaster.sendTransform(
+                (trans[0], trans[1],
+                 0.0), new_quat, rospy.Time.now(),
+                self.namespace[i] + "/jojojojo", MAP)
+
+            self.broadcaster.sendTransform(
+                trans_r, rot_r, rospy.Time.now(),
+                self.namespace[i] + "/jojojojo/head",
+                self.namespace[i] + "/jojojojo")
+
+            print "aaaaaaaaaaaaaa"
+            # if abs(euler_foot[0]) > 0.1 or abs(euler_foot[1]) > 0.1:  #
+            # magiqu
+
+            for k in range(0, len(self.vect_tf)):
+                name_split = self.vect_tf[k][0].split("/")
+                for j in range(0, len(name_split)):
+                    if self.vect_tf[k][0].split(
+                            "/")[j] == self.namespace[i]:
+
+                        print self.vect_tf[k][0].split(
+                            "/")[j]
+
+                        (trans_fin,
+                         rot_fin) = self.listener.lookupTransform(
+                             self.vect_tf[k][1],
+                            self.namespace[i] + "/jojojojo/head",
+                            rospy.Time(0))
+
+                        self.vect_tf[k] = [
+                            self.vect_tf[k][0], self.vect_tf[k][1],
+                            (self.vect_tf[k][2][0], self.vect_tf[
+                             k][2][1], trans_fin[2]),
+                            rot_fin]
+
+                print "eeee"
+                print euler_foot
 
     def publish_gazebo_model_state(self):
 
@@ -304,7 +348,7 @@ class ToolsPepper:
             position_to_pub.pose.orientation.w = rot_to_pub[3]
 
             self.pub.publish(position_to_pub)
-        print self.vect_gazebo
+        # print self.vect_gazebo
 
     def publish_tf(self, data):
         """
@@ -314,6 +358,7 @@ class ToolsPepper:
         In this function we put things that need to be looped ( as
         publish tf or calcul speed )
         """
+
         for i in range(len(self.vect_tf)):
             self.broadcaster.sendTransform(
                 self.vect_tf[i][2], self.vect_tf[i][3], rospy.Time.now(),
@@ -341,7 +386,7 @@ class ToolsPepper:
         if self.link_to_robot == True:
             self.func_link_to_robot()
         # print 'ddddddddddddddddddddddddddddddddddd', self.vect_tf
-
+        self.MAJ_link_head_mark()
         # TODOOOOOOO
 
     def func_link_to_robot(self):
