@@ -25,7 +25,7 @@
     name="launch_robot_$(arg namespace)" output="screen">
   </node>
 
-  <!-- ADD A ROBOT 
+  <!-- ADD A ROBOT
 
   <arg name="namespace2" default="robot2" />
   <node pkg="mark_tracker_tools" type="add_robot.sh"
@@ -53,7 +53,7 @@
 <arg name="initial_pose_y" default="17.0" />
 
   <node pkg="mark_tracker_tools" type="init_mark0.sh"
-    args="4 /home/sfress/catkin_ws/src/norme"
+    args="4 $(env HOME)/catkin_ws/src/norme"
     name="timed_roslaunch" output="screen">
   </node>
 
