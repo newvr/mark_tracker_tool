@@ -74,7 +74,7 @@ class ToolsPepper:
         rospy.Timer(rospy.Duration(5), self.timer_callback)
         self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]],
                         ["mon_tf/" + self.namespace + "/" + self.robotpart,
-                         self.mark, [0, 0, 0], [0, 0, 0, 1]]]
+                         self.mark, [0, 0, -0.2159], [0, 0, 0, 1]]]
 
         rospy.Subscriber(
             "/cam0/visualization_marker", Marker, self.publish_tf)
@@ -84,41 +84,54 @@ class ToolsPepper:
     def timer_callback(self, data):
 
         print "timer"
+
         old_trans, rot = self.listener.lookupTransform('/map',
-                                                       self.namespace + "/" +
-                                                       self.robotpart,
+                                                       self.mark,
                                                        rospy.Time(0))
         old_euler = euler_from_quaternion(rot)
 
-        if self.moy_it < 8:
-
+        if self.moy_it < 6:
+            print self.moy_it
             names = "HeadYaw"
             changes = 0.5
-            fractionMaxSpeed = 0.1
+            fractionMaxSpeed = 0.4
             self.motionProxy.changeAngles(names, changes, fractionMaxSpeed)
             time.sleep(3)  # todo
 
             new_trans, rot = self.listener.lookupTransform('/map',
-                                                           self.namespace + "/" +
-                                                           self.robotpart,
+                                                           self.mark,
                                                            rospy.Time(0))
+
             new_euler = euler_from_quaternion(rot)
             self.delta_angle = new_euler[2] - old_euler[2]
 
+            print "dx=", old_trans[0] - new_trans[0]
+            print "dy=", old_trans[1] - new_trans[1]
             d = math.sqrt(math.pow(old_trans[0] - new_trans[0], 2) +
                           math.pow(old_trans[1] - new_trans[1], 2))
 
+            mark_to_head_trans, rot = self.listener.lookupTransform(
+                self.mark,
+                self.namespace + "/" + self.robotpart,
+                rospy.Time(0))
+
             print "d", d / 2
+            print "angle = ", self.delta_angle
             cx = d / (2. * math.tan(self.delta_angle / 2))
 
             print "aaaax", cx
 
+            # self.vect_tf[1] = [
+            #     self.vect_tf[1][0], self.vect_tf[1][1],
+            #     (mark_to_head_trans[0] - d / 2 * sign(
+            #         new_trans[0] - old_trans[0]),
+            #      mark_to_head_trans[1] - cx * sign(
+            #         new_trans[1] - old_trans[1]), 0),
+            #     self.vect_tf[1][3]]
             self.moy_vec.append((d / 2, cx))
+            print "ooooooooooooo", new_trans
             self.moy_it += 1
-
-        else:
-            print self.moy_vec
-
+        print self.moy_vec
         # calcul de la dist entre centre de rotatation et la marque
 
     def publish_tf(self, data):
@@ -199,14 +212,14 @@ class ToolsPepper:
         #                     (0, 0, 0, 1)]
         #                 self.x_old = trans[0]
 
-        # if abs(delta_y) > 0.001:
-        # print "===========delta_y"
-        # self.vect_tf[1] = [
-        # self.vect_tf[1][0], self.vect_tf[1][1],
-        # (self.x_old, self.y_old +
-        # 0.001 * sign(delta_y), 0),
-        # (0, 0, 0, 1)]
-        # self.y_old = trans[1]
+        #             if abs(delta_y) > 0.001:
+        #                 print "===========delta_y"
+        #                 self.vect_tf[1] = [
+        #                     self.vect_tf[1][0], self.vect_tf[1][1],
+        #                     (self.x_old, self.y_old +
+        #                      0.001 * sign(delta_y), 0),
+        #                     (0, 0, 0, 1)]
+        #                 self.y_old = trans[1]
 
         #         self.iter += 1
         #         print self.iter
@@ -223,7 +236,7 @@ class ToolsPepper:
 
         (trans_r, rot_r) = self.listener.lookupTransform(
             self.namespace + "/base_footprint",
-            self.namespace + "/HeadTouchFront_frame",
+            self.namespace + "/Head",
             rospy.Time(0))
 
         euler_foot = euler_from_quaternion(rot)
@@ -240,7 +253,6 @@ class ToolsPepper:
             self.namespace + "/jojojojo")
 
         # if abs(euler_foot[0]) > 0.1 or abs(euler_foot[1]) > 0.1:  #
-        # magiqu
 
         (trans_fin, rot_fin) = self.listener.lookupTransform(
             self.vect_tf[1][1],

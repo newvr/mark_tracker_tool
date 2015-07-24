@@ -39,6 +39,8 @@ else
     echo "end wait for $1 seconds"
 
     python $2/init.py $2
-
+    echo
+    echo "===>  End of initialization! <==="
+    echo
 
 fi
