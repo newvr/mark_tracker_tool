@@ -19,7 +19,7 @@
 
   <!-- ADD A ROBOT -->
 
-  <arg name="namespace" default="monica" />
+  <arg name="namespace" default="" />
   <node pkg="mark_tracker_tools" type="add_robot.sh"
     args="$(arg namespace) 10.0.206.111"
     name="launch_robot_$(arg namespace)" output="screen">
@@ -27,7 +27,7 @@
 
   <!-- ADD A ROBOT
 
-  <arg name="namespace2" default="robot2" />
+  <arg name="namespace2" default="" />
   <node pkg="mark_tracker_tools" type="add_robot.sh"
     args="$(arg namespace2) 10.0.206.111"
     name="launch_robot_$(arg namespace2)" output="screen">
@@ -45,7 +45,7 @@
 
 
   <arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
-  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path) $(arg namespace) " />
+  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path)" />
 
 
   <!--call a service  -->

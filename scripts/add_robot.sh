@@ -3,9 +3,9 @@
 # Script to launch a pepper from a launchfile with the corresponding IP env variable
 #
 # Fres Scarlett
-# 
 #
-# Use: ./add_robot.sh [namespace] [IP] 
+#
+# Use: ./add_robot.sh [namespace] [IP]
 #
 
 function showHelp(){
@@ -33,6 +33,22 @@ if [ "$1" = "-h" ]; then
 else
     #echo "start wait for $1 seconds"
     #sleep $1
-    export NAO_IP=$2
-    roslaunch mark_tracker_tools sca_pepper.launch namespace:=$1
+echo "jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj"
+echo "$#" $#
+echo " dollar 1 "
+echo $1
+echo " dollar 2 "
+echo $2
+echo " finiini "
+
+    if test "$#" -eq 3; then
+        echo "iiiiiiiiiiiiiiiiif"
+        export NAO_IP=$1
+        roslaunch mark_tracker_tools pepper.launch
+
+    else
+        echo "eeeeeeeeeeeeeelse"
+        export NAO_IP=$2
+        roslaunch mark_tracker_tools sca_pepper.launch namespace:=$1
+    fi
 fi

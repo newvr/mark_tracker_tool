@@ -175,8 +175,13 @@ class ToolsPepper:
         self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]]]
         self.vect_gazebo = []
         for i in range(0, len(self.namespace)):
-            self.vect_tf.append(
-                ["robot" + str(i), namespace[i], [0, 0, 0], [0, 0, 0, 1]])
+
+            if namespace[i] != "":
+                self.vect_tf.append(
+                    ["robot" + str(i), namespace[i], [0, 0, 0], [0, 0, 0, 1]])
+            else:
+                self.vect_tf.append(
+                    ["robot" + str(i), "_", [0, 0, 0], [0, 0, 0, 1]])
 
         rospy.Subscriber(
             "/cam0/visualization_marker", Marker, self.publish_tf)
@@ -427,12 +432,19 @@ class ToolsPepper:
 
                 # robot_part = namespace + name[len(name) - 1]
                 # print self.vect_tf
-                robot_split = self.vect_tf[i + 1][0].split("/")
-                robot_part = robot_split[1] + "/" + robot_split[2]
-                # print "oooooooo", robot_part
 
+                robot_split = self.vect_tf[i + 1][0].split("/")
+
+                if len(robot_split) == 3:
+                    robot_part = robot_split[1] + "/" + robot_split[2]
+                    # print "oooooooo", robot_part
+                else:
+                    robot_part = robot_split[1]
+
+                print "robotparrrrrt", robot_part
                 (trans, rot) = self.listener.lookupTransform(
                     robot_part, self.namespace[i] + "/base_link", rospy.Time(0))
+                print "oooooo1111111111111111"
 
                 # ou devrait donc etre notre base_link par rapport a notre mark: on
                 # cree un base_link "virtuel"
@@ -455,7 +467,8 @@ class ToolsPepper:
         except Exception, exc:
             a = 1
             # print " waiting for tf.func_link_to_robot.."
-            # print exc
+
+            print"iviiviviv", exc
 
             # ============================= ROS SERVICES ======================
     def init_plan(self, req):
@@ -801,12 +814,18 @@ def main(args):
 
     value = args[1]
     namespace = []
-    if len(args) > 2:
+
+    print "huhhhhhhhhhhhhhhhhhh"
+    print len(args)
+    print args
+
+    if len(args) > 4:
         for i in range(2, len(args) - 2):
             namespace.append(args[i])
             print namespace
     else:
         namespace = [""]
+        print "elsemarjjajajajttackertoool"
 
     CAMERA_NAME = "axis_camera"
     # ROBOT_REF = "base_link"
