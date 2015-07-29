@@ -68,6 +68,7 @@ class State:
         self.position_new = [0.0, 0.0, 0.0]
         self.rotation_new = [0.0, 0.0, 0.0, 1.0]
         self.vitesse = [0.0, 0.0, 0.0]
+        self.result_cam = 0
 
     def print_info(self):
         print self.frame
@@ -184,7 +185,7 @@ class ToolsPepper:
                     ["robot" + str(i), "_", [0, 0, 0], [0, 0, 0, 1]])
 
         rospy.Subscriber(
-            "/cam0/visualization_marker", Marker, self.publish_tf)
+            "/axis/visualization_marker", Marker, self.publish_tf)
 
         # rospy.Subscriber(
         #     self.namespace[0] + "/joint_states",
@@ -201,6 +202,10 @@ class ToolsPepper:
 
         rospy.Service(
             'init_plan', InitPlan, self.init_plan)
+
+        rospy.Service(
+            'init_mark_to_robot', InitMarkToRobot, self.init_mark_to_robot)
+
         rospy.Service(
             'where_is', WhereIs, self.where_is)
 
@@ -209,9 +214,6 @@ class ToolsPepper:
 
         rospy.Service(
             'add_mark', AddMark, self.add_mark)
-
-        rospy.Service(
-            'init_mark_to_robot', InitMarkToRobot, self.init_mark_to_robot)
 
         rospy.Service(
             'load_mark', LoadMark, self.load_mark)
@@ -228,6 +230,10 @@ class ToolsPepper:
         rospy.Service(
             'publish_obj_to_gazebo', PublishObjToGazebo,
             self.publish_obj_to_gazebo)
+
+        rospy.Service(
+            'add_camera', AddCamera,
+            self.add_camera)
 
     # mais doit marcer ac launch init et relaunch le track no pepper
 
@@ -273,13 +279,29 @@ class ToolsPepper:
                     self.broadcaster.sendTransform(
                         trans_odom, rot_odom, rospy.Time.now(),
                         ns + "/tf_odom_to_baselink", ns + "/tf_odom_to_map")
+
+                    (trans_head_base,
+                     rot_head_base) = self.listener.lookupTransform(
+                        ns +
+                        "/base_link",
+                        ns + "/base_footprint",
+                        rospy.Time(0))
+
+                    self.broadcaster.sendTransform(
+                        trans_head_base,
+                        rot_head_base, rospy.Time.now(),
+                        ns + "/tf_odom_to_footprint",
+                        ns + "/tf_odom_to_baselink")
                     # print "tot_calc", tot_trans, tot_rot
 
            # if self.link_to_robot == True:
 
     def MAJ_link_head_mark(self):
+        """this function forces the footprint of the robot to be on the ground
+        """
         try:
             for i in range(0, len(self.namespace)):
+                print "coujojoojojjojojmajcou"
                 (trans, rot) = self.listener.lookupTransform(
                     MAP, self.namespace[i] + "/base_footprint",
                     rospy.Time(0))
@@ -304,6 +326,7 @@ class ToolsPepper:
 
                 # if abs(euler_foot[0]) > 0.1 or abs(euler_foot[1]) > 0.1:  #
                 # magiqu
+                print "self.namespace", self.namespace
 
                 for k in range(0, len(self.vect_tf)):
                     name_split = self.vect_tf[k][0].split("/")
@@ -351,6 +374,13 @@ class ToolsPepper:
             position_to_pub.pose.orientation.w = quat_to_send[3]
 
             self.pub.publish(position_to_pub)
+
+            self.broadcaster.sendTransform(
+                (0, 0, 0), (0, 0, 0, 1), rospy.Time.now(),
+                "/map", "/world")
+            self.broadcaster.sendTransform(
+                trans_to_pub, rot_to_pub, rospy.Time.now(),
+                "/virtual_pepper/base_link", "/world")
 
     def publish_tf(self, data):
         """
@@ -762,15 +792,6 @@ class ToolsPepper:
             print "init_track_speed() error, is ", req.frame, " saved?"
             print e
 
-    def publish_obj_to_gazebo(self, req):
-
-        mark = "ar_marker_" + str(req.marknumber)
-        quat = quaternion_from_euler(req.anglex, req.angley, req.anglez)
-        self.vect_tf.append([req.frame,
-                             mark, (req.x, req.y, req.z), quat])
-        self.vect_gazebo.append([req.frame, req.frame])
-        return PublishObjToGazeboResponse(True)
-
     def reset_odom(self, _):
         """
             in joint_state_callback(self, data), we publish how the odometry
@@ -783,6 +804,46 @@ class ToolsPepper:
         for i in self.namespace:
             self.odom_maj.append(False)
         return EmptyResponse()
+
+    def publish_obj_to_gazebo(self, req):
+
+        mark = "ar_marker_" + str(req.marknumber)
+        quat = quaternion_from_euler(req.anglex, req.angley, req.anglez)
+        self.vect_tf.append([req.frame,
+                             mark, (req.x, req.y, req.z), quat])
+        self.vect_gazebo.append([req.frame, req.frame])
+        return PublishObjToGazeboResponse(True)
+
+    def add_camera(self, req):
+
+        self.result_cam = 0
+        while self.result_cam == 0:
+            try:
+                quat = quaternion_from_euler(0.0, 0.0, req.theta)
+
+                self.broadcaster.sendTransform((req.x, req.y, 0.0), quat,
+                                               rospy.Time.now(),
+                                               req.name,
+                                               MAP)
+
+                trans, rot = self.listener.lookupTransform(MAP,
+                                                           req.mark, rospy.Time(0))
+
+                FIND = False
+                for i in range(0, len(self.vect_tf)):
+                    if self.vect_tf[i][0] == req.name:
+                        FIND = True
+                        self.vect_tf[i] = [req.name, MAP, trans, rot]
+                        self.result_cam = 1
+
+                if FIND == False:
+                    self.vect_tf.append(
+                        [req.name, MAP, trans, rot])
+                    self.result_cam = 1
+
+                return AddCameraResponse(True)
+            except Exception, e:
+                print "can't read calibration files  ", e
 
 
 def write_message(vecteur):

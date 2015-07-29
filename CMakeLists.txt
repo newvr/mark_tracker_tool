@@ -64,6 +64,7 @@ find_package(catkin REQUIRED COMPONENTS
    LoadInit.srv
    InitTrackSpeed.srv
    PublishObjToGazebo.srv
+   AddCamera.srv
 
  )
 
