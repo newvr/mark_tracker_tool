@@ -23,6 +23,7 @@ FILE_SAVED_MARK = "saved_mark.txt"
 FILE_SAVED_INIT_PLAN = "saved_init_plan.txt"
 FILE_SAVED_MARK_TO_ROBOT = "saved_mark_to_"
 TIMER = 0.2
+DISAPPEAR_TIME = 3
 # MARKER_NAME = "4x4_"
 MARKER_NAME = "ar_marker_"
 # NAMESPACE = ["robot1"]
@@ -154,6 +155,7 @@ class ToolsPepper:
         # flag activated by service init_track_speed to specify which mark we
         # want to track
         self.speed_tracker_activated = False
+        self.clock_verif_erreur = rospy.Time.now()
         self.trans_odom_init = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
         self.listener = tf.TransformListener()
         self.broadcaster = tf.TransformBroadcaster()
@@ -305,14 +307,14 @@ class ToolsPepper:
         """
         try:
             for i in range(0, len(self.namespace)):
-                print "coujojoojojjojojmajcou"
+
                 (trans, rot) = self.listener.lookupTransform(
                     MAP, self.namespace[i] + "/base_footprint",
                     rospy.Time(0))
 
                 (trans_r, rot_r) = self.listener.lookupTransform(
                     self.namespace[i] + "/base_footprint",
-                    self.namespace[i] + "/HeadTouchFront_frame",
+                    self.namespace[i] + "/Head",
                     rospy.Time(0))
 
                 euler_foot = euler_from_quaternion(rot)
@@ -330,7 +332,6 @@ class ToolsPepper:
 
                 # if abs(euler_foot[0]) > 0.1 or abs(euler_foot[1]) > 0.1:  #
                 # magiqu
-                print "self.namespace", self.namespace
 
                 for k in range(0, len(self.vect_tf)):
                     name_split = self.vect_tf[k][0].split("/")
@@ -370,13 +371,7 @@ class ToolsPepper:
             position_to_pub.reference_frame = "world"
             position_to_pub.pose.position.x = trans_to_pub[0]
             position_to_pub.pose.position.y = trans_to_pub[1]
-
-            if i == 0:
-                position_to_pub.pose.position.z = 0.81958
-            elif i == 1:
-                position_to_pub.pose.position.z = 0
-            else:
-                position_to_pub.pose.position.z = trans_to_pub[2]
+            position_to_pub.pose.position.z = trans_to_pub[2]
 
             position_to_pub.pose.orientation.x = quat_to_send[0]
             position_to_pub.pose.orientation.y = quat_to_send[1]
@@ -394,6 +389,32 @@ class ToolsPepper:
                     trans_to_pub, rot_to_pub, rospy.Time.now(),
                     "/virtual_pepper/base_link", "/world")
 
+    def is_object_still_there(self, data):
+        """
+            if the mark is not seen during a time, it disappear from gazebo
+        """
+
+        # print "coucou"
+        name = "ar_marker_" + str(data.id)
+        for k in range(1, len(self.vect_gazebo)):
+            if name == self.vect_gazebo[k][2]:
+                print "iiiiiif"
+                self.vect_gazebo[k][3] = rospy.Time.now(
+                ) + rospy.Duration(DISAPPEAR_TIME)
+                print "pre", self.vect_gazebo
+            elif rospy.Time.now() > self.vect_gazebo[k][3]:
+                print "pre", self.vect_gazebo
+                position_to_pub = ModelState()
+                position_to_pub.model_name = self.vect_gazebo[k][1]
+                position_to_pub.reference_frame = "world"
+                position_to_pub.pose.position.x = 10
+                position_to_pub.pose.position.y = 10
+                position_to_pub.pose.position.z = 10
+                self.pub.publish(position_to_pub)
+                print "DELETING OBJECT WITH ID :  ", data.id
+                self.vect_gazebo.pop(k)
+                print "pooost", self.vect_gazebo
+
     def publish_tf(self, data):
         """
         publish tf contained in self.vect_tf
@@ -403,6 +424,7 @@ class ToolsPepper:
         publish tf or calcul speed )
         """
 
+        self.is_object_still_there(data)
         for i in range(len(self.vect_tf)):
             self.broadcaster.sendTransform(
                 self.vect_tf[i][2], self.vect_tf[i][3], rospy.Time.now(),
@@ -483,10 +505,8 @@ class ToolsPepper:
                 else:
                     robot_part = robot_split[1]
 
-                print "robotparrrrrt", robot_part
                 (trans, rot) = self.listener.lookupTransform(
                     robot_part, self.namespace[i] + "/base_link", rospy.Time(0))
-                print "oooooo1111111111111111"
 
                 # ou devrait donc etre notre base_link par rapport a notre mark: on
                 # cree un base_link "virtuel"
@@ -509,8 +529,6 @@ class ToolsPepper:
         except Exception, exc:
             a = 1
             # print " waiting for tf.func_link_to_robot.."
-
-            print"iviiviviv", exc
 
             # ============================= ROS SERVICES ======================
     def init_plan(self, req):
@@ -613,8 +631,10 @@ class ToolsPepper:
                         trans_marker_to_body, rot_marker_to_body]
 
             # to init the right odom
+            print "marker", marker
             self.vect_gazebo.append([ns + "/torso",
-                                     ns + "/virtual_pepper"])
+                                     ns + "/virtual_pepper",
+                                     marker, rospy.Time.now() + rospy.Duration(DISAPPEAR_TIME)])
             return True
         except Exception, exc:
             print " waiting for tf..."
@@ -771,8 +791,7 @@ class ToolsPepper:
         if req.init == 1:
 
             for k in range(0, len(self.namespace)):
-                self.vect_gazebo.append([self.namespace[k] + "/torso",
-                                         self.namespace[k] + "/virtual_pepper"])
+
                 self.link_to_robot = True
                 doc = FILE_SAVED_MARK_TO_ROBOT + self.namespace[k] + ".txt"
 
@@ -783,6 +802,12 @@ class ToolsPepper:
                          [fichier[0][i] for i in range(2, 5)],
                          [fichier[0][i] for i in range(5, 9)]]
                 self.vect_tf[k + 1] = toadd
+                self.vect_gazebo.append([self.namespace[k] + "/torso",
+                                         self.namespace[
+                    k] + "/virtual_pepper",
+                    fichier[0][1],
+                    rospy.Time.now() + rospy.Duration(
+                    DISAPPEAR_TIME)])
             return LoadInitResponse(True)
 
     def init_track_speed(self, req):
@@ -823,7 +848,9 @@ class ToolsPepper:
         quat = quaternion_from_euler(req.anglex, req.angley, req.anglez)
         self.vect_tf.append([req.frame,
                              mark, (req.x, req.y, req.z), quat])
-        self.vect_gazebo.append([req.frame, req.frame])
+        self.vect_gazebo.append(
+            [req.frame, req.frame, mark,
+             rospy.Time.now() + rospy.Duration(DISAPPEAR_TIME)])
         return PublishObjToGazeboResponse(True)
 
     def add_camera(self, req):
@@ -839,7 +866,8 @@ class ToolsPepper:
                                                MAP)
 
                 trans, rot = self.listener.lookupTransform(MAP,
-                                                           req.mark, rospy.Time(0))
+                                                           req.mark,
+                                                           rospy.Time(0))
 
                 FIND = False
                 for i in range(0, len(self.vect_tf)):
