@@ -190,8 +190,11 @@ class ToolsPepper:
         # rospy.Subscriber(
         #     self.namespace[0] + "/joint_states",
         #     JointState, self.joint_state_callback(self.namespace[0]))
+        # self.pub = rospy.Publisher(
+        #     '/gazebo/set_model_state', ModelState, queue_size=10)
+
         self.pub = rospy.Publisher(
-            '/gazebo/set_model_state', ModelState, queue_size=10)
+            '/to_position', ModelState, queue_size=10)
 
         for i in range(0, len(self.namespace)):
             rospy.Subscriber(
@@ -246,10 +249,27 @@ class ToolsPepper:
 
         frame = data.header.frame_id
         ns = frame.split("/")[0]
+
+        print "cocococococAAAAAAAAAAAAAAAAAAAAAAAAAAaaococococcoococ"
+        try:
+            (trans_fin, rot_fin) = self.listener.lookupTransform(
+                "/odom", "/base_link",
+                rospy.Time(0))
+
+        # (trans, rot) = self.listener.lookupTransform(req.frame,
+        #                                              MAP,
+        #                                              rospy.Time(0))
+
+            self.broadcaster.sendTransform(trans_fin, rot_fin, rospy.Time.now(),
+                                           "/odom2",
+                                           "/base_link")
+        except Exception, exc:
+            print "graouuuuu", exc
+
         for i in range(0, len(self.namespace)):
             if ns == self.namespace[i]:
                 if self.odom_maj[i] == False:
-                    while self.odom_maj[i] == False:
+                    if self.odom_maj[i] == False:
 
                         # the odometry depends on where we start the robot, this
                         # step
@@ -261,42 +281,43 @@ class ToolsPepper:
                         try:
                             (self.trans_o_map[i],
                              self.rot_o_map[i]) = self.listener.lookupTransform(
-                                "map", ns + "/odom", rospy.Time(0))
+                                "/map", ns + "/odom2", rospy.Time(0))
                             # print self.trans_o_map, self .rot_o_map
                             self.odom_maj[i] = True
 
                         except Exception, exc:
-                            continue
+                            print exc
                             # print " waiting for tf..."
                             # print exc
 
                 else:
-                    (trans_odom, rot_odom) = self.listener.lookupTransform(
-                        ns + "/base_link", ns + "/odom", rospy.Time(0))
+                    try:
+                        (trans_odom, rot_odom) = self.listener.lookupTransform(
+                            "odom2", "base_link", rospy.Time(0))
+                        self.broadcaster.sendTransform(
+                            self.trans_o_map[i], self.rot_o_map[
+                                i], rospy.Time.now(),
+                            "/tf_odom_to_map", "/map")
+                        self.broadcaster.sendTransform(
+                            trans_odom, rot_odom, rospy.Time.now(),
+                            "/tf_odom_to_baselink", "/tf_odom_to_map")
+                    except Exception, exc:
+                        print "laaaaaa", exc
 
-                    self.broadcaster.sendTransform(
-                        self.trans_o_map[i], self.rot_o_map[
-                            i], rospy.Time.now(),
-                        ns + "/tf_odom_to_map", "/map")
-
-                    self.broadcaster.sendTransform(
-                        trans_odom, rot_odom, rospy.Time.now(),
-                        ns + "/tf_odom_to_baselink", ns + "/tf_odom_to_map")
-
-                    # (trans_read,
-                    #  rot_read) = self.listener.lookupTransform(
-                    #     ns +
-                    #     "/tf_odom_to_baselink",
-                    #     MAP,
-                    #     rospy.Time(0))
-                    # euler_read = euler_from_quaternion(rot_read)
-                    # quat_read = quaternion_from_euler(0, 0, euler_read[2])
-                    # self.broadcaster.sendTransform(
-                    #     (trans_read[0], trans_read[1], 0), quat_read,
-                    #     rospy.Time.now(),
-                    #     ns + "/tf_odom_to_footprint",
-                    #     MAP)
-                    # print "tot_calc", tot_trans, tot_rot
+            # (trans_read,
+            #  rot_read) = self.listener.lookupTransform(
+            #     ns +
+            #     "/tf_odom_to_baselink",
+            #     MAP,
+            #     rospy.Time(0))
+            # euler_read = euler_from_quaternion(rot_read)
+            # quat_read = quaternion_from_euler(0, 0, euler_read[2])
+            # self.broadcaster.sendTransform(
+            #     (trans_read[0], trans_read[1], 0), quat_read,
+            #     rospy.Time.now(),
+            #     ns + "/tf_odom_to_footprint",
+            #     MAP)
+            # print "tot_calc", tot_trans, tot_rot
 
            # if self.link_to_robot == True:
 
@@ -305,7 +326,6 @@ class ToolsPepper:
         """
         try:
             for i in range(0, len(self.namespace)):
-                print "coujojoojojjojojmajcou"
                 (trans, rot) = self.listener.lookupTransform(
                     MAP, self.namespace[i] + "/base_footprint",
                     rospy.Time(0))
@@ -330,7 +350,6 @@ class ToolsPepper:
 
                 # if abs(euler_foot[0]) > 0.1 or abs(euler_foot[1]) > 0.1:  #
                 # magiqu
-                print "self.namespace", self.namespace
 
                 for k in range(0, len(self.vect_tf)):
                     name_split = self.vect_tf[k][0].split("/")
@@ -483,10 +502,8 @@ class ToolsPepper:
                 else:
                     robot_part = robot_split[1]
 
-                print "robotparrrrrt", robot_part
                 (trans, rot) = self.listener.lookupTransform(
                     robot_part, self.namespace[i] + "/base_link", rospy.Time(0))
-                print "oooooo1111111111111111"
 
                 # ou devrait donc etre notre base_link par rapport a notre mark: on
                 # cree un base_link "virtuel"
@@ -618,7 +635,7 @@ class ToolsPepper:
             return True
         except Exception, exc:
             print " waiting for tf..."
-           # print exc
+            # print exc
 
     def where_is(self, req):
         """

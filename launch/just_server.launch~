@@ -1,7 +1,4 @@
 <launch>
-<!-- ############## launch camera ############ -->
-	<include file="$(find axis_cam_modified)/launch/axis_basics.launch"/>
-
 
 <!--   *********************** Module AR_track_alvar *************   -->
 
@@ -12,28 +9,6 @@
 	<arg name="cam_info_topic0" default="/camera_info" />
 	<arg name="output_frame0" default="/axis_camera" />
 
-	<node name="ar_track_alvar_axis" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic0) $(arg cam_info_topic0) $(arg output_frame0)" >
-	<remap from="/visualization_marker" to="axis/visualization_marker"/>
- 	</node>
-
-
-  <!-- ADD A ROBOT -->
-
-  <arg name="namespace" default="" />
-  <node pkg="mark_tracker_tools" type="add_robot.sh"
-    args="$(arg namespace) 10.0.206.111"
-    name="launch_robot_$(arg namespace)" output="screen">
-  </node>
-
-  <!-- ADD A ROBOT
-
-  <arg name="namespace2" default="" />
-  <node pkg="mark_tracker_tools" type="add_robot.sh"
-    args="$(arg namespace2) 10.0.206.111"
-    name="launch_robot_$(arg namespace2)" output="screen">
-  </node>
-
--->
    <!--
    Add all the "$(arg namespace1)" in args of server_tools_mark_server otherwise it wont listen to the good topics
    Plus this is launching the server, so if it was already running, it will close it and run a new one ( so the init data will need to be redone )

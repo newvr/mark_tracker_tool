@@ -25,41 +25,7 @@
     name="launch_robot_$(arg namespace)" output="screen">
   </node>
 
-  <!-- ADD A ROBOT
-
-  <arg name="namespace2" default="" />
-  <node pkg="mark_tracker_tools" type="add_robot.sh"
-    args="$(arg namespace2) 10.0.206.111"
-    name="launch_robot_$(arg namespace2)" output="screen">
-  </node>
-
--->
-   <!--
-   Add all the "$(arg namespace1)" in args of server_tools_mark_server otherwise it wont listen to the good topics
-   Plus this is launching the server, so if it was already running, it will close it and run a new one ( so the init data will need to be redone )
-    -->
-
-    <node name="invert_tf_odom_parent" pkg="mark_tracker_tools" type="invert_tf_odom_parent.py" respawn="True"  />
-
-    <!-- BEGIN SERVER-->
-
-
-  <arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
-  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path)" />
-
-
-  <!--call a service  -->
-
-<arg name="initial_pose_y" default="17.0" />
-
-  <node pkg="mark_tracker_tools" type="init_mark0.sh"
-    args="4 $(env HOME)/catkin_ws/src/norme"
-    name="timed_roslaunch" output="screen">
-  </node>
-
-
-
-
+ 
 
 </launch>
 
