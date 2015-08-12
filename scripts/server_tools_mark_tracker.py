@@ -13,6 +13,7 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from mark_tracker_tools.srv import *
 from os import chdir
 import functools
+import math
 # -- variables magiques TODO
 
 CAMERA_NAME = "axis_camera"
@@ -377,12 +378,31 @@ class ToolsPepper:
         for i in range(0, len(self.vect_gazebo)):
 
             (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
-                MAP, self.vect_gazebo[i][0], rospy.Time(0))
+                MAP, self.vect_gazebo[i][0],  rospy.Time(0))
 
             # quat_to_send = [0, 0, 0, 1]
             # print "quaaaat", quat_to_send
             euler = euler_from_quaternion(rot_to_pub)
-            quat_to_send = quaternion_from_euler(0, 0, euler[2])
+            quat_to_send = quaternion_from_euler(
+                math.pi - euler[2], 0, 0)
+
+            # position_to_pub = ModelState()
+            # position_to_pub.model_name = self.vect_gazebo[i][1]
+            # position_to_pub.reference_frame = "world"
+            # position_to_pub.pose.position.x = trans_to_pub[0]
+            # position_to_pub.pose.position.y = trans_to_pub[1]
+
+            # if i == 0:
+            #     position_to_pub.pose.position.z = 0.81958
+            # elif i == 1:
+            #     position_to_pub.pose.position.z = 0
+            # else:
+            #     position_to_pub.pose.position.z = trans_to_pub[2]
+
+            # position_to_pub.pose.orientation.x = quat_to_send[0]
+            # position_to_pub.pose.orientation.y = quat_to_send[1]
+            # position_to_pub.pose.orientation.z = quat_to_send[2]
+            # position_to_pub.pose.orientation.w = quat_to_send[3]
 
             position_to_pub = ModelState()
             position_to_pub.model_name = self.vect_gazebo[i][1]
@@ -391,7 +411,7 @@ class ToolsPepper:
             position_to_pub.pose.position.y = trans_to_pub[1]
 
             if i == 0:
-                position_to_pub.pose.position.z = 0.81958
+                position_to_pub.pose.position.z = 0.065
             elif i == 1:
                 position_to_pub.pose.position.z = 0
             else:
@@ -406,12 +426,15 @@ class ToolsPepper:
 
             if i == 0:
 
-                self.broadcaster.sendTransform(
-                    (0, 0, 0), (0, 0, 0, 1), rospy.Time.now(),
-                    "/map", "/world")
+                (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
+                    MAP, "/base_link", rospy.Time(0))
+
+                # self.broadcaster.sendTransform(
+                #     (0, 0, 0), (0, 0, 0, 1), rospy.Time.now(),
+                #     "/map", "/world")
                 self.broadcaster.sendTransform(
                     trans_to_pub, rot_to_pub, rospy.Time.now(),
-                    "/virtual_pepper/base_link", "/world")
+                    "/virtual_pepper/base_link", MAP)
 
     def publish_tf(self, data):
         """
@@ -630,7 +653,7 @@ class ToolsPepper:
                         trans_marker_to_body, rot_marker_to_body]
 
             # to init the right odom
-            self.vect_gazebo.append([ns + "/torso",
+            self.vect_gazebo.append([ns + "/WheelFR_link",
                                      ns + "/virtual_pepper"])
             return True
         except Exception, exc:
@@ -788,7 +811,7 @@ class ToolsPepper:
         if req.init == 1:
 
             for k in range(0, len(self.namespace)):
-                self.vect_gazebo.append([self.namespace[k] + "/torso",
+                self.vect_gazebo.append([self.namespace[k] + "/WheelFR_link",
                                          self.namespace[k] + "/virtual_pepper"])
                 self.link_to_robot = True
                 doc = FILE_SAVED_MARK_TO_ROBOT + self.namespace[k] + ".txt"
