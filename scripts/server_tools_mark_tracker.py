@@ -444,18 +444,6 @@ class ToolsPepper:
         publish tf or calcul speed )
         """
 
-        (trans, rot) = self.listener.lookupTransform(
-            "ar_marker_7", "axis_camera", rospy.Time(0))
-
-        euler_cam = euler_from_quaternion(rot)
-        print "~~~~~~~~~ar7~~~~~~~~~~~~", euler_cam
-
-        (trans, rot) = self.listener.lookupTransform(
-            "ar_marker_3", "axis_camera", rospy.Time(0))
-
-        euler_cam = euler_from_quaternion(rot)
-        print "~~~~~~~~~ar3~~~~~~~~~~~~", euler_cam
-
         for i in range(len(self.vect_tf)):
             self.broadcaster.sendTransform(
                 self.vect_tf[i][2], self.vect_tf[i][3], rospy.Time.now(),
@@ -579,6 +567,7 @@ class ToolsPepper:
 
             while euler_from_quaternion(rot)[0] > 1.57:
                 time.sleep(0.01)
+                print "SLEEEEEEEEEEp"
                 trans, rot = self.listener.lookupTransform(
                     marker, '/map', rospy.Time(0))
 
