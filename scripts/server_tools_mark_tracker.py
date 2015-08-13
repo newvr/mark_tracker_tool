@@ -251,7 +251,6 @@ class ToolsPepper:
         frame = data.header.frame_id
         ns = frame.split("/")[0]
 
-        print "cocococococAAAAAAAAAAAAAAAAAAAAAAAAAAaaococococcoococ"
         try:
             (trans_fin, rot_fin) = self.listener.lookupTransform(
                 "/odom", "/base_link",
@@ -445,6 +444,18 @@ class ToolsPepper:
         publish tf or calcul speed )
         """
 
+        (trans, rot) = self.listener.lookupTransform(
+            "ar_marker_7", "axis_camera", rospy.Time(0))
+
+        euler_cam = euler_from_quaternion(rot)
+        print "~~~~~~~~~ar7~~~~~~~~~~~~", euler_cam
+
+        (trans, rot) = self.listener.lookupTransform(
+            "ar_marker_3", "axis_camera", rospy.Time(0))
+
+        euler_cam = euler_from_quaternion(rot)
+        print "~~~~~~~~~ar3~~~~~~~~~~~~", euler_cam
+
         for i in range(len(self.vect_tf)):
             self.broadcaster.sendTransform(
                 self.vect_tf[i][2], self.vect_tf[i][3], rospy.Time.now(),
@@ -562,9 +573,15 @@ class ToolsPepper:
         try:
 
             marker = MARKER_NAME + str(req.marknumber)
-            print "marker", marker
+
             trans, rot = self.listener.lookupTransform(
                 marker, '/map', rospy.Time(0))
+
+            while euler_from_quaternion(rot)[0] > 1.57:
+                time.sleep(0.01)
+                trans, rot = self.listener.lookupTransform(
+                    marker, '/map', rospy.Time(0))
+
             self.vect_tf[0] = [CAMERA_NAME, MAP, trans, rot]
             print " plan intialization...!"
             print "euler", euler_from_quaternion(self.vect_tf[0][3])
@@ -928,17 +945,11 @@ def main(args):
     value = args[1]
     namespace = []
 
-    print "huhhhhhhhhhhhhhhhhhh"
-    print len(args)
-    print args
-
     if len(args) > 4:
         for i in range(2, len(args) - 2):
             namespace.append(args[i])
-            print namespace
     else:
         namespace = [""]
-        print "elsemarjjajajajttackertoool"
 
     CAMERA_NAME = "axis_camera"
     # ROBOT_REF = "base_link"

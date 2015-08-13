@@ -4,7 +4,7 @@
 
   <param name="target_frame_name" type="string" value="/map"/>
   <param name="source_frame_name" type="string" value="/base_link"/>
-  <param name="trajectory_update_rate" type="double" value="0.5"/>
+  <param name="trajectory_update_rate" type="double" value="5"/>
   <param name="trajectory_publish_rate" type="double" value="0.15"/>
 
   </node>
@@ -13,7 +13,7 @@
   <remap from="/trajectory" to="odom_trajectory"/>
   <param name="target_frame_name" type="string" value="/map"/>
   <param name="source_frame_name" type="string" value="/tf_odom_to_baselink"/>
-  <param name="trajectory_update_rate" type="double" value="0.5"/>
+  <param name="trajectory_update_rate" type="double" value="5"/>
   <param name="trajectory_publish_rate" type="double" value="15"/>
   </node>
 
