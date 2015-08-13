@@ -1,0 +1,20 @@
+<launch>
+<!-- to publish the path of the odom and the detected one on rviz -->
+  <node pkg="hector_trajectory_server" type="hector_trajectory_server" name="hector_trajectory_server" output="screen">
+
+  <param name="target_frame_name" type="string" value="/map"/>
+  <param name="source_frame_name" type="string" value="/base_link"/>
+  <param name="trajectory_update_rate" type="double" value="0.5"/>
+  <param name="trajectory_publish_rate" type="double" value="0.15"/>
+
+  </node>
+
+  <node pkg="hector_trajectory_server" type="hector_trajectory_server" name="hector_trajectory_server_odom" output="screen">
+  <remap from="/trajectory" to="odom_trajectory"/>
+  <param name="target_frame_name" type="string" value="/map"/>
+  <param name="source_frame_name" type="string" value="/tf_odom_to_baselink"/>
+  <param name="trajectory_update_rate" type="double" value="0.5"/>
+  <param name="trajectory_publish_rate" type="double" value="15"/>
+  </node>
+
+</launch>

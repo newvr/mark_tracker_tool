@@ -338,7 +338,7 @@ class ToolsPepper:
 
                 euler_foot = euler_from_quaternion(rot)
                 new_quat = quaternion_from_euler(
-                    0.0, -0.04, euler_foot[2])
+                    0.0, 0.0, euler_foot[2])
                 self.broadcaster.sendTransform(
                     (trans[0], trans[1],
                      0.0), new_quat, rospy.Time.now(),
@@ -662,7 +662,7 @@ class ToolsPepper:
 
     def where_is(self, req):
         """
-        arguments :robot_part,
+        arguments :robot_part or mark
         return: (x,y,theta) of the robot_part.
         The possible names are tf frames ( visible in rviz for example )
         """
