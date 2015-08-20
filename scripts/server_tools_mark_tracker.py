@@ -14,6 +14,7 @@ from mark_tracker_tools.srv import *
 from os import chdir
 import functools
 import math
+from tf.msg import tfMessage
 # -- variables magiques TODO
 
 CAMERA_NAME = "axis_camera"
@@ -175,7 +176,7 @@ class ToolsPepper:
         #                vect_tf[n]=my_mark_12
 
         self.vect_tf = [[CAMERA_NAME, MAP, [0, 0, 0], [0, 0, 0, 1]]]
-        self.vect_gazebo = []
+        self.vect_gazebo = [["init", "init"]]
         for i in range(0, len(self.namespace)):
 
             if namespace[i] != "":
@@ -185,14 +186,17 @@ class ToolsPepper:
                 self.vect_tf.append(
                     ["robot" + str(i), "_", [0, 0, 0], [0, 0, 0, 1]])
 
+        # rospy.Subscriber(
+        #     "/tf", tfMessage, self.publish_tf)
+
         rospy.Subscriber(
             "/axis/visualization_marker", Marker, self.publish_tf)
 
         # rospy.Subscriber(
         #     self.namespace[0] + "/joint_states",
         #     JointState, self.joint_state_callback(self.namespace[0]))
-        # self.pub = rospy.Publisher(
-        #     '/gazebo/set_model_state', ModelState, queue_size=10)
+        self.pub_obj = rospy.Publisher(
+            '/gazebo/set_model_state', ModelState, queue_size=10)
 
         self.pub = rospy.Publisher(
             '/to_position', ModelState, queue_size=10)
@@ -329,12 +333,10 @@ class ToolsPepper:
                 (trans, rot) = self.listener.lookupTransform(
                     MAP, self.namespace[i] + "/base_footprint",
                     rospy.Time(0))
-
                 (trans_r, rot_r) = self.listener.lookupTransform(
                     self.namespace[i] + "/base_footprint",
-                    self.namespace[i] + "/HeadTouchFront_frame",
+                    self.namespace[i] + "/HeadTouchMiddle_frame",
                     rospy.Time(0))
-
                 euler_foot = euler_from_quaternion(rot)
                 new_quat = quaternion_from_euler(
                     0.0, 0.0, euler_foot[2])
@@ -342,25 +344,44 @@ class ToolsPepper:
                     (trans[0], trans[1],
                      0.0), new_quat, rospy.Time.now(),
                     self.namespace[i] + "/jojojojo", MAP)
-
                 self.broadcaster.sendTransform(
                     trans_r, rot_r, rospy.Time.now(),
-                    self.namespace[i] + "/jojojojo/head",
+                    self.namespace[i] + "/jojojojo/HeadTouchMiddle_frame",
                     self.namespace[i] + "/jojojojo")
-
                 # if abs(euler_foot[0]) > 0.1 or abs(euler_foot[1]) > 0.1:  #
                 # magiqu
 
-                for k in range(0, len(self.vect_tf)):
+                for k in range(1, len(self.vect_tf)):
                     name_split = self.vect_tf[k][0].split("/")
+                    print name_split, "====", self.namespace[i]
                     for j in range(0, len(name_split)):
-                        if self.vect_tf[k][0].split(
-                                "/")[j] == self.namespace[i]:
+
+                        # si pas de namespace au robot, que l'indice 1 concerne
+                        # par la maj
+                        if self.namespace[i] == "":
+                            (trans_fin,
+                             rot_fin) = self.listener.lookupTransform(
+                                self.vect_tf[1][1],
+                                self.namespace[
+                                    i] + "/jojojojo/HeadTouchMiddle_frame",
+                                rospy.Time(0))
+
+                            self.vect_tf[1] = [
+                                self.vect_tf[1][0], self.vect_tf[1][1],
+                                (self.vect_tf[1][2][0], self.vect_tf[
+                                 1][2][1], trans_fin[2]),
+                                rot_fin]
+
+                        # sinon on balaye tous les robots
+                        # TODO fonction
+                        if (self.vect_tf[k][0].split(
+                                "/")[j] == self.namespace[i]):
 
                             (trans_fin,
                              rot_fin) = self.listener.lookupTransform(
                                  self.vect_tf[k][1],
-                                self.namespace[i] + "/jojojojo/head",
+                                self.namespace[
+                                    i] + "/jojojojo/HeadTouchMiddle_frame",
                                 rospy.Time(0))
 
                             self.vect_tf[k] = [
@@ -369,71 +390,76 @@ class ToolsPepper:
                                  k][2][1], trans_fin[2]),
                                 rot_fin]
         except Exception, exc:
-
             a = 1
+            print exc
 
     def publish_gazebo_model_state(self):
 
         for i in range(0, len(self.vect_gazebo)):
-
-            (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
-                MAP, self.vect_gazebo[i][0],  rospy.Time(0))
-
-            # quat_to_send = [0, 0, 0, 1]
-            # print "quaaaat", quat_to_send
-            euler = euler_from_quaternion(rot_to_pub)
-            quat_to_send = quaternion_from_euler(
-                math.pi - euler[2], 0, 0)
-
-            # position_to_pub = ModelState()
-            # position_to_pub.model_name = self.vect_gazebo[i][1]
-            # position_to_pub.reference_frame = "world"
-            # position_to_pub.pose.position.x = trans_to_pub[0]
-            # position_to_pub.pose.position.y = trans_to_pub[1]
-
-            # if i == 0:
-            #     position_to_pub.pose.position.z = 0.81958
-            # elif i == 1:
-            #     position_to_pub.pose.position.z = 0
-            # else:
-            #     position_to_pub.pose.position.z = trans_to_pub[2]
-
-            # position_to_pub.pose.orientation.x = quat_to_send[0]
-            # position_to_pub.pose.orientation.y = quat_to_send[1]
-            # position_to_pub.pose.orientation.z = quat_to_send[2]
-            # position_to_pub.pose.orientation.w = quat_to_send[3]
-
-            position_to_pub = ModelState()
-            position_to_pub.model_name = self.vect_gazebo[i][1]
-            position_to_pub.reference_frame = "world"
-            position_to_pub.pose.position.x = trans_to_pub[0]
-            position_to_pub.pose.position.y = trans_to_pub[1]
-
-            if i == 0:
-                position_to_pub.pose.position.z = 0.065
-            elif i == 1:
-                position_to_pub.pose.position.z = 0
-            else:
-                position_to_pub.pose.position.z = trans_to_pub[2]
-
-            position_to_pub.pose.orientation.x = quat_to_send[0]
-            position_to_pub.pose.orientation.y = quat_to_send[1]
-            position_to_pub.pose.orientation.z = quat_to_send[2]
-            position_to_pub.pose.orientation.w = quat_to_send[3]
-
-            self.pub.publish(position_to_pub)
-
-            if i == 0:
-
+            try:
                 (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
-                    MAP, "/base_link", rospy.Time(0))
+                    MAP, self.vect_gazebo[i][0],  rospy.Time(0))
 
-                # self.broadcaster.sendTransform(
-                #     (0, 0, 0), (0, 0, 0, 1), rospy.Time.now(),
-                #     "/map", "/world")
-                self.broadcaster.sendTransform(
-                    trans_to_pub, rot_to_pub, rospy.Time.now(),
-                    "/virtual_pepper/base_link", MAP)
+                # quat_to_send = [0, 0, 0, 1]
+                # print "quaaaat", quat_to_send
+
+                # position_to_pub = ModelState()
+                # position_to_pub.model_name = self.vect_gazebo[i][1]
+                # position_to_pub.reference_frame = "world"
+                # position_to_pub.pose.position.x = trans_to_pub[0]
+                # position_to_pub.pose.position.y = trans_to_pub[1]
+
+                # if i == 0:
+                #     position_to_pub.pose.position.z = 0.81958
+                # elif i == 1:
+                #     position_to_pub.pose.position.z = 0
+                # else:
+                #     position_to_pub.pose.position.z = trans_to_pub[2]
+
+                # position_to_pub.pose.orientation.x = quat_to_send[0]
+                # position_to_pub.pose.orientation.y = quat_to_send[1]
+                # position_to_pub.pose.orientation.z = quat_to_send[2]
+                # position_to_pub.pose.orientation.w = quat_to_send[3]
+
+                position_to_pub = ModelState()
+                position_to_pub.model_name = self.vect_gazebo[i][1]
+                position_to_pub.reference_frame = "world"
+                position_to_pub.pose.position.x = trans_to_pub[0]
+                position_to_pub.pose.position.y = trans_to_pub[1]
+
+                if i == 0:
+                    euler = euler_from_quaternion(rot_to_pub)
+                    quat_to_send = quaternion_from_euler(
+                        math.pi - euler[2], 0, 0)
+                    position_to_pub.pose.position.z = 0.065
+                elif self.vect_gazebo[i][1] == "table":
+                    quat_to_send = rot_to_pub
+                    position_to_pub.pose.position.z = 0
+                else:
+                    quat_to_send = rot_to_pub
+                    position_to_pub.pose.position.z = trans_to_pub[2]
+
+                position_to_pub.pose.orientation.x = quat_to_send[0]
+                position_to_pub.pose.orientation.y = quat_to_send[1]
+                position_to_pub.pose.orientation.z = quat_to_send[2]
+                position_to_pub.pose.orientation.w = quat_to_send[3]
+
+                if i == 0:
+
+                    self.pub.publish(position_to_pub)
+                    (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
+                        MAP, "/base_link", rospy.Time(0))
+
+                    # self.broadcaster.sendTransform(
+                    #     (0, 0, 0), (0, 0, 0, 1), rospy.Time.now(),
+                    #     "/map", "/world")
+                    self.broadcaster.sendTransform(
+                        trans_to_pub, rot_to_pub, rospy.Time.now(),
+                        "/virtual_pepper/base_link", MAP)
+                else:
+                    self.pub_obj.publish(position_to_pub)
+            except Exception, exc:
+                a = 1
 
     def publish_tf(self, data):
         """
@@ -639,14 +665,14 @@ class ToolsPepper:
                 ns + "mon_tf/" + ROBOT_FOOT, MAP)
             self.listener.waitForTransform(
                 ns + "mon_tf/" + ROBOT_FOOT,
-                MAP, rospy.Time(0), rospy.Duration(1.0))
+                MAP, rospy.Time(0), rospy.Duration(0.01))
             # donc notre bodypart serait ici par rapport a la map
             self.broadcaster.sendTransform(
                 trans_foot_to_body, rot_foot_to_body, rospy.Time.now(),
                 "mon_tf/" + req.robotpart, ns + "mon_tf/" + ROBOT_FOOT)
             self.listener.waitForTransform(
                 marker, "mon_tf/" + req.robotpart,
-                rospy.Time(0), rospy.Duration(1.0))
+                rospy.Time(0), rospy.Duration(0.01))
             (trans_marker_to_body,
                 rot_marker_to_body) = self.listener.lookupTransform(
                 marker, "mon_tf/" + req.robotpart, rospy.Time(0))
@@ -659,8 +685,8 @@ class ToolsPepper:
                         trans_marker_to_body, rot_marker_to_body]
 
             # to init the right odom
-            self.vect_gazebo.append([ns + "/WheelFR_link",
-                                     ns + "/virtual_pepper"])
+            self.vect_gazebo[0] = [ns + "/WheelFR_link",
+                                   ns + "/virtual_pepper"]
             return True
         except Exception, exc:
             print " waiting for tf..."
@@ -817,8 +843,8 @@ class ToolsPepper:
         if req.init == 1:
 
             for k in range(0, len(self.namespace)):
-                self.vect_gazebo.append([self.namespace[k] + "/WheelFR_link",
-                                         self.namespace[k] + "/virtual_pepper"])
+                self.vect_gazebo[0] = [self.namespace[k] + "/WheelFR_link",
+                                       self.namespace[k] + "/virtual_pepper"]
                 self.link_to_robot = True
                 doc = FILE_SAVED_MARK_TO_ROBOT + self.namespace[k] + ".txt"
 
