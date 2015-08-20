@@ -38,6 +38,7 @@ class GlitchEraser:
     def __init__(self):
 
         self.old_vector = []
+
         # self.listener = tf.TransformListener()
         self.broadcaster = tf.TransformBroadcaster()
         self.pub_tf_track = rospy.Publisher(
@@ -60,12 +61,19 @@ class GlitchEraser:
         mat_A = numpy.matrix(transformer.fromTranslationRotation(trans,
                                                                  rot))
         mat_B = numpy.matrix(
-            transformer.fromTranslationRotation((0, 0, 0.3),
+            transformer.fromTranslationRotation((0, 0, -1.5),
                                                 (0, 0, 0, 1)))
 
         mat_C = mat_A * mat_B
 
-        print mat_C
+        vect = numpy.matrix([[1, 1, 1, 1]])
+        vectC = vect * mat_C
+        vectA = vect * mat_A
+
+        print "vectC", vectC, "vectA", vectA
+        print "A", mat_A
+        print "B", mat_B
+        print "C", mat_C
         print "000", mat_C[0].item(3)
         print "111", mat_C[1].item(3)
         print "222", mat_C[2].item(3)
@@ -94,7 +102,7 @@ class GlitchEraser:
 
         print data.transforms[0].child_frame_id, euler_from_quaternion(rot)
 
-        if dist_bis > dist:
+        if vectC[0].item(3) < vectA[0].item(3):
             print "GLITCH"
         else:
 

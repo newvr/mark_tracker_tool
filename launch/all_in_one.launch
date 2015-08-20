@@ -14,8 +14,10 @@
 
 	<node name="ar_track_alvar_axis" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic0) $(arg cam_info_topic0) $(arg output_frame0)" >
 	<remap from="/visualization_marker" to="axis/visualization_marker"/>
- <!-- <remap from="/tf" to="/tf_relay_track"/> -->
+ <remap from="/tf" to="/tf_relay_track"/>
  	</node>
+
+<node name="glitch_eraser" pkg="mark_tracker_tools" type="glitch_eraser.py" />
 
 
   <!-- ADD A ROBOT -->

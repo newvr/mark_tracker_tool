@@ -389,6 +389,9 @@ class ToolsPepper:
                                 (self.vect_tf[k][2][0], self.vect_tf[
                                  k][2][1], trans_fin[2]),
                                 rot_fin]
+
+            return True
+
         except Exception, exc:
             a = 1
             print exc
@@ -497,7 +500,7 @@ class ToolsPepper:
         if self.link_to_robot == True:
             self.func_link_to_robot()
         # print 'ddddddddddddddddddddddddddddddddddd', self.vect_tf
-        self.MAJ_link_head_mark()
+
         # TODOOOOOOO
 
     def func_link_to_robot(self):
@@ -687,6 +690,9 @@ class ToolsPepper:
             # to init the right odom
             self.vect_gazebo[0] = [ns + "/WheelFR_link",
                                    ns + "/virtual_pepper"]
+
+            ret = False
+
             return True
         except Exception, exc:
             print " waiting for tf..."
@@ -855,6 +861,12 @@ class ToolsPepper:
                          [fichier[0][i] for i in range(2, 5)],
                          [fichier[0][i] for i in range(5, 9)]]
                 self.vect_tf[k + 1] = toadd
+            ret = False
+            while ret != True:
+                print "kkkkkkkkkkkkkkkkkkkkkkkk"
+                ret = self.MAJ_link_head_mark()
+                print ret
+                time.sleep(0.01)
             return LoadInitResponse(True)
 
     def init_track_speed(self, req):
