@@ -22,7 +22,7 @@
 
   <arg name="namespace" default="" />
   <node pkg="mark_tracker_tools" type="add_robot.sh"
-    args="$(arg namespace) 10.0.206.111"
+    args="$(arg namespace) 10.0.204.34"
     name="launch_robot_$(arg namespace)" output="screen">
   </node>
 
