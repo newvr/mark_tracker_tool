@@ -1,6 +1,0 @@
- <launch>
-
-
-    <include file="$(find mark_tracker_tools)/launch/pepper.launch"/>
-
- </launch>

@@ -62,7 +62,7 @@ find_package(catkin REQUIRED COMPONENTS
    AddMark.srv
    LoadMark.srv
    LoadInit.srv
-   InitTrackSpeed.srv
+   WhatIsSpeed.srv
    PublishObjToGazebo.srv
    AddCamera.srv
 

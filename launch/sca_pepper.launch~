@@ -1,7 +1,0 @@
- <launch>
-  <arg name="namespace" default="" />
-  <group ns="$(arg namespace)">
-    <param name="tf_prefix" value="$(arg namespace)" />
-    <include file="$(find mark_tracker_tools)/launch/pepper.launch"/>
-  </group>
- </launch>

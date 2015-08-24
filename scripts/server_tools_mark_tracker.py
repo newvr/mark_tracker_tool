@@ -29,7 +29,8 @@ TIMER = 0.2
 MARKER_NAME = "ar_marker_"
 # NAMESPACE = ["robot1"]
 
-# mon_fichier_speed = open("../saved_tf/test_vitesse.txt", "w")
+mon_fichier_speed = open(
+    "/home/sfress/catkin_ws/src/mark_tracker_tool/saved_tf/coucou.txt", "w")
 # -- variables magiques
 
 
@@ -42,100 +43,6 @@ def sign(var):
     if var == 0:
         return 0
     return -1
-
-
-class State:
-
-    """
-    frame
-    time
-    positionold
-    rotationold
-    timenew
-    positionnew
-    rotationnew
-    """
-
-    def __init__(self, frame):
-        "constructeur avec specification du frame"
-
-        self.compteur = 0
-        self.time_init = rospy.Time.now()
-        self.frame = frame
-        self.time_old = rospy.Time.now()
-        self.position_old = [0.0, 0.0, 0.0]
-        self.rotation_old = [0.0, 0.0, 0.0, 1.0]
-
-        self.time_new = rospy.Time.now()
-        self.position_new = [0.0, 0.0, 0.0]
-        self.rotation_new = [0.0, 0.0, 0.0, 1.0]
-        self.vitesse = [0.0, 0.0, 0.0]
-        self.result_cam = 0
-
-    def print_info(self):
-        print self.frame
-        print self.time_old
-        print self.position_old
-        print self.rotation_old
-
-        print self.time_new
-        print self.position_new
-        print self.rotation_new
-        print self.vitesse
-
-    def maj_state(self, postion, rotation):
-        """
-            save newer data in "new" and save the old ones in "old"
-            for speed calculus
-        """
-        if self.compteur == 3:
-            self.time_old = self.time_new
-            self.position_old = self.position_new
-            self.rotation_old = self.rotation_new
-
-            self.time_new = rospy.Time.now()
-            self.position_new = postion
-            self.rotation_new = rotation
-            self.compteur = 0
-            self.calcul_speed_lin()
-
-        self.compteur += 1
-
-    def calcul_speed_lin(self):
-        """
-        look the distance made during delta_t and calcul the speed of the robot
-        """
-        # in nanoseconds //* 10 ** -9
-
-        delta_t = (self.time_new - self.time_old).nsecs
-        delta_position = [
-            self.position_new[0] - self.position_old[0],
-            self.position_new[1] - self.position_old[1],
-            self.position_new[2] - self.position_old[2]]
-
-        if delta_position[0] != 0 and delta_position[
-                1] != 0 and delta_position[2] != 0:
-
-            self.vitesse = [
-                delta_position[0] / delta_t,
-                delta_position[1] / delta_t,
-                delta_position[2] / delta_t]
-
-            print "#################"
-
-            message = str(
-                self.time_new.secs + self.time_new.nsecs * 10 ** -9) + " "
-            message = message + str(
-                self.vitesse[0]) + " " + str(
-                self.vitesse[1]) + " " + str(self.vitesse[2])
-            message = message + "\n"
-            # mon_fichier_speed.write(message)
-
-            print delta_position
-            print self.vitesse[0]
-            print self.vitesse[1]
-            print self.vitesse[2]
-            print "-----------------"
 
 
 class ToolsPepper:
@@ -153,13 +60,10 @@ class ToolsPepper:
         self.namespace = namespace
         # flag actived by service init_mark_to_robot to bring robot
         self.link_to_robot = False
-        # flag activated by service init_track_speed to specify which mark we
         # want to track
-        self.speed_tracker_activated = False
         self.trans_odom_init = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
         self.listener = tf.TransformListener()
         self.broadcaster = tf.TransformBroadcaster()
-        self.state_speed_calcul = State(" ")
         self.trans_o_map = [[0, 0, 0]for i in range(len(self.namespace))]
         self.rot_o_map = [[0, 0, 0, 1]for i in range(len(self.namespace))]
         self.len = 0
@@ -230,7 +134,7 @@ class ToolsPepper:
             'load_init', LoadInit, self.load_init)
 
         rospy.Service(
-            'init_track_speed', InitTrackSpeed, self.init_track_speed)
+            'what_is_speed', WhatIsSpeed, self.what_is_speed)
 
         rospy.Service(
             'reset_odom', Empty, self.reset_odom)
@@ -251,7 +155,8 @@ class ToolsPepper:
                 or not, so it is called whenever the joints are updated)
             => the odometry is relative to the frame base_link
         """
-
+        if self.link_to_robot == True:
+            self.func_link_to_robot()
         frame = data.header.frame_id
         ns = frame.split("/")[0]
 
@@ -400,42 +305,23 @@ class ToolsPepper:
 
         for i in range(0, len(self.vect_gazebo)):
             try:
+                # Where is the desired object
                 (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
                     MAP, self.vect_gazebo[i][0],  rospy.Time(0))
 
-                # quat_to_send = [0, 0, 0, 1]
-                # print "quaaaat", quat_to_send
-
-                # position_to_pub = ModelState()
-                # position_to_pub.model_name = self.vect_gazebo[i][1]
-                # position_to_pub.reference_frame = "world"
-                # position_to_pub.pose.position.x = trans_to_pub[0]
-                # position_to_pub.pose.position.y = trans_to_pub[1]
-
-                # if i == 0:
-                #     position_to_pub.pose.position.z = 0.81958
-                # elif i == 1:
-                #     position_to_pub.pose.position.z = 0
-                # else:
-                #     position_to_pub.pose.position.z = trans_to_pub[2]
-
-                # position_to_pub.pose.orientation.x = quat_to_send[0]
-                # position_to_pub.pose.orientation.y = quat_to_send[1]
-                # position_to_pub.pose.orientation.z = quat_to_send[2]
-                # position_to_pub.pose.orientation.w = quat_to_send[3]
-
+                # create the special message for gazebo
                 position_to_pub = ModelState()
                 position_to_pub.model_name = self.vect_gazebo[i][1]
                 position_to_pub.reference_frame = "world"
                 position_to_pub.pose.position.x = trans_to_pub[0]
                 position_to_pub.pose.position.y = trans_to_pub[1]
 
-                if i == 0:
-                    euler = euler_from_quaternion(rot_to_pub)
-                    quat_to_send = quaternion_from_euler(
-                        math.pi - euler[2], 0, 0)
-                    position_to_pub.pose.position.z = 0.065
-                elif self.vect_gazebo[i][1] == "table":
+                # TODO : this is to be sure that the table is on the ground
+                # but it can not be generalized because the chair origin
+                # is not on the ground, we have to decide wether to fix
+                # the origin of all objects gazebo on the ground or pass
+                # the Z in a parameter or just the marker info
+                if self.vect_gazebo[i][1] == "table":
                     quat_to_send = rot_to_pub
                     position_to_pub.pose.position.z = 0
                 else:
@@ -470,7 +356,7 @@ class ToolsPepper:
         This is called while a mark is detected
 
         In this function we put things that need to be looped ( as
-        publish tf or calcul speed )
+         tf )
         """
 
         for i in range(len(self.vect_tf)):
@@ -491,17 +377,19 @@ class ToolsPepper:
             print"************"
             self.len = len(self.vect_tf)
 
-        ##### ici partie pour calculer la vitesse du frame choisit#####
-        if self.speed_tracker_activated == True:
-            (trans, rot) = self.listener.lookupTransform(
-                self.state_speed_calcul.frame, MAP, rospy.Time(0))
-            self.state_speed_calcul.maj_state(trans, rot)
+        # try:
 
-        if self.link_to_robot == True:
-            self.func_link_to_robot()
-        # print 'ddddddddddddddddddddddddddddddddddd', self.vect_tf
+        #     message = ""
+        #     (lin, ang) = self.listener.lookupTwist(
+        #         "base_link", "/map", rospy.Time(0.0), rospy.Duration(0.3))
+        #     tot = abs(lin[0]) + abs(lin[1])
+        #     message = str(time.time()) + " "
+        #     message = message + str(lin[0]) + " " + str(
+        #         lin[1]) + " " + str(lin[2]) + " " + str(tot) + "\n"
 
-        # TODOOOOOOO
+        #     mon_fichier_speed.write(message)
+        # except Exception, exc:
+        #     print "otototo", exc
 
     def func_link_to_robot(self):
         """
@@ -863,29 +751,27 @@ class ToolsPepper:
                 self.vect_tf[k + 1] = toadd
             ret = False
             while ret != True:
-                print "kkkkkkkkkkkkkkkkkkkkkkkk"
                 ret = self.MAJ_link_head_mark()
-                print ret
                 time.sleep(0.01)
             return LoadInitResponse(True)
 
-    def init_track_speed(self, req):
+    def what_is_speed(self, req):
         """
         Arguments: name of the frame to track( if it is the
-        mark or the robot's feets)
-        return: true if frame exists
+        mark or the robot's feets), -> velocity through x,y,theta,tot
+
         """
+        print "ddddddddddddd"
         try:
-            (trans, rot) = self.listener.lookupTransform(req.frame,
-                                                         MAP,
-                                                         rospy.Time(0))
-            # if listener OK :
-            self.state_speed_calcul = State(req.frame)
-            self.speed_tracker_activated = True
-            return InitTrackSpeedResponse(True)
+            (lin, ang) = self.listener.lookupTwist(
+                req.frame, "/map", rospy.Time(0.0), rospy.Duration(0.3))
+
+            tot = abs(lin[0]) + abs(lin[1])
+            return WhatIsSpeedResponse(lin[0], lin[1], ang[2], tot, True)
 
         except Exception, e:
-            print "init_track_speed() error, is ", req.frame, " saved?"
+            print "init_track_speed() error, is ", req.frame, " exist?"
+            return WhatIsSpeedResponse(0, 0, 0, 0, False)
             print e
 
     def reset_odom(self, _):

@@ -18,6 +18,17 @@ import functools
 import math
 
 
+def dotProduct(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def crossProduct(a, b):
+    x = a[1] * b[2] - a[2] * b[1]
+    y = a[2] * b[0] - a[0] * b[2]
+    z = a[0] * b[1] - a[1] * b[0]
+    return [x, y, z]
+
+
 def sign(var):
     """
     signe function
@@ -32,7 +43,11 @@ def sign(var):
 class GlitchEraser:
 
     """
-    contains all services that can be called by the client
+    class to broadcast and publish to rospy
+    The idea is to create a relay where
+    ar_track_alvar will publish the potientially wrong data.
+    (because if will let the AR_track_alvar in the real /tf topic,
+        there would be no way of removing the wrong messages)
     """
 
     def __init__(self):
@@ -60,37 +75,43 @@ class GlitchEraser:
         transformer = tf.TransformerROS()
         mat_A = numpy.matrix(transformer.fromTranslationRotation(trans,
                                                                  rot))
-        mat_B = numpy.matrix(
-            transformer.fromTranslationRotation((0, 0, -1.5),
-                                                (0, 0, 0, 1)))
 
-        mat_C = mat_A * mat_B
+        A1 = numpy.matrix([[1.], [0.], [0.], [1]])
+        A2 = numpy.matrix([[0.], [1.], [0.], [1]])
+        A3 = numpy.matrix([[0.], [0.], [1.], [1]])
 
-        vect = numpy.matrix([[1, 1, 1, 1]])
-        vectC = vect * mat_C
-        vectA = vect * mat_A
+        B1 = mat_A * A1
+        B2 = mat_A * A2
+        B3 = mat_A * A3
 
-        # print "vectC", vectC, "vectA", vectA
-        # print "A", mat_A
-        # print "B", mat_B
-        # print "C", mat_C
-        # print "000", mat_C[0].item(3)
-        # print "111", mat_C[1].item(3)
-        # print "222", mat_C[2].item(3)
+        print "B3", B3
+        print "trans", trans
 
-        # print (data.transforms[0].child_frame_id,
-        #        data.transforms[0].header.frame_id,
-        #        trans, euler_from_quaternion(rot))
+        A1B1 = numpy.array([B1.item(0) - 1., B1.item(0) - 0., B1.item(0) - 0.])
+        A3B3 = numpy.array([B3.item(0), B3.item(0) - 0., B3.item(0) - 0.])
 
-        dist = math.sqrt(
-            math.pow(mat_A[0].item(3),
-                     2) + math.pow(mat_A[1].item(3),
-                                   2) + math.pow(mat_A[2].item(3), 2))
+        vectb1 = [B1.item(0) - trans[0], B1.item(1) - trans[1],
+                  B2.item(2) - trans[2]]
 
-        dist_bis = math.sqrt(
-            math.pow(mat_C[0].item(3),
-                     2) + math.pow(mat_C[1].item(3),
-                                   2) + math.pow(mat_C[2].item(3), 2))
+        vectb2 = [B2.item(0) - trans[0], B2.item(1) - trans[1],
+                  B2.item(2) - trans[2]]
+
+        N1 = numpy.array([0, 0, 1])
+        N2 = crossProduct(vectb1, vectb2)
+        print " ectb1, vectb2,", vectb1, vectb2
+        print "ooooooooooooooooo", dotProduct(N1, N2)
+
+        tot = dotProduct(N1, N2) + 1
+        print tot
+        # dist = math.sqrt(
+        #     math.pow(mat_A[0].item(3),
+        #              2) + math.pow(mat_A[1].item(3),
+        #                            2) + math.pow(mat_A[2].item(3), 2))
+
+        # dist_bis = math.sqrt(
+        #     math.pow(mat_C[0].item(3),
+        #              2) + math.pow(mat_C[1].item(3),
+        #                            2) + math.pow(mat_C[2].item(3), 2))
 
         # print "dist=", dist, "dist_bis=", dist_bis
         # dist_bis = math.sqrt(
@@ -100,11 +121,17 @@ class GlitchEraser:
 
         # print "dist", dist, "dist_bis", dist_bis
 
-        # print data.transforms[0].child_frame_id, euler_from_quaternion(rot)
-
-        if vectC[0].item(3) < vectA[0].item(3):
+        if B3.item(2) > trans[2]:
+            print"--------------------"
             print "GLITCH"
+            print data.transforms[0].child_frame_id
+            print tot
+
         else:
+            print"--------------------"
+            print "pasglitche"
+            print data.transforms[0].child_frame_id
+            print tot
 
             self.broadcaster.sendTransform(trans, rot, rospy.Time.now(),
                                            data.transforms[0].child_frame_id,
