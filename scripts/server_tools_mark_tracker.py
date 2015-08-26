@@ -304,14 +304,19 @@ class ToolsPepper:
     def publish_gazebo_model_state(self):
 
         for i in range(0, len(self.vect_gazebo)):
+
             try:
+                position_to_pub = ModelState()
+                # is the mark visible? if not we reach exception
+                (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
+                    self.vect_gazebo[i][1], MAP,  rospy.Time(0))
+
                 # Where is the desired object
                 (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
                     MAP, self.vect_gazebo[i][0],  rospy.Time(0))
 
                 # create the special message for gazebo
-                position_to_pub = ModelState()
-                position_to_pub.model_name = self.vect_gazebo[i][1]
+
                 position_to_pub.reference_frame = "world"
                 position_to_pub.pose.position.x = trans_to_pub[0]
                 position_to_pub.pose.position.y = trans_to_pub[1]
@@ -334,7 +339,7 @@ class ToolsPepper:
                 position_to_pub.pose.orientation.w = quat_to_send[3]
 
                 if i == 0:
-
+                    position_to_pub.model_name = "/virtual_pepper"
                     self.pub.publish(position_to_pub)
                     (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
                         MAP, "/base_link", rospy.Time(0))
@@ -346,9 +351,15 @@ class ToolsPepper:
                         trans_to_pub, rot_to_pub, rospy.Time.now(),
                         "/virtual_pepper/base_link", MAP)
                 else:
+                    position_to_pub.model_name = self.vect_gazebo[i][0]
                     self.pub_obj.publish(position_to_pub)
             except Exception, exc:
-                a = 1
+                print"publish gazebo", exc
+                position_to_pub.reference_frame = "world"
+                position_to_pub.pose.position.x = -5
+                position_to_pub.pose.position.y = 5
+                position_to_pub.model_name = self.vect_gazebo[i][0]
+                self.pub_obj.publish(position_to_pub)
 
     def publish_tf(self, data):
         """
@@ -793,7 +804,7 @@ class ToolsPepper:
         quat = quaternion_from_euler(req.anglex, req.angley, req.anglez)
         self.vect_tf.append([req.frame,
                              mark, (req.x, req.y, req.z), quat])
-        self.vect_gazebo.append([req.frame, req.frame])
+        self.vect_gazebo.append([req.frame, mark])
         return PublishObjToGazeboResponse(True)
 
     def add_camera(self, req):
