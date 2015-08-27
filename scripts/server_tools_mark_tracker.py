@@ -29,10 +29,6 @@ TIMER = 0.2
 MARKER_NAME = "ar_marker_"
 # NAMESPACE = ["robot1"]
 
-mon_fichier_speed = open(
-    "/home/sfress/catkin_ws/src/mark_tracker_tool/saved_tf/coucou.txt", "w")
-# -- variables magiques
-
 
 def sign(var):
     """

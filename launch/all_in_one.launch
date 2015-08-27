@@ -23,9 +23,10 @@
 
   <!-- ADD A ROBOT -->
 
+  <arg name="ip_pepper" default="10.0.204.34" />
   <arg name="namespace" default="" />
   <node pkg="mark_tracker_tools" type="add_robot.sh"
-    args="$(arg namespace) 10.0.204.34"
+    args="$(arg namespace) $(arg ip_pepper)"
     name="launch_robot_$(arg namespace)" output="screen">
   </node>
 
