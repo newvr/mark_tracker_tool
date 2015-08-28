@@ -160,18 +160,7 @@ class ToolsPepper:
             (trans_fin, rot_fin) = self.listener.lookupTransform(
                 "/odom", "/base_link",
                 rospy.Time(0))
-<<<<<<< HEAD
-            print "ooooooooooooooooooooooooooooo
-=======
-            print "oooooooooooooooooooooooooooo"
-            print "oooooooooooooooooooooooooooo"
-            print "oooooooooooooooooooooooooooo"
-            print "oooooooooooooooooooooooooooo"
 
-	   
->>>>>>> 8c95b20097c4759c7780117f384ffc6a2b6aa9df
-
-            "
         # (trans, rot) = self.listener.lookupTransform(req.frame,
         #                                              MAP,
         #                                              rospy.Time(0))
