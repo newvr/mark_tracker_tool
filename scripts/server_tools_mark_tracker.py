@@ -158,8 +158,13 @@ class ToolsPepper:
 
         try:
             (trans_fin, rot_fin) = self.listener.lookupTransform(
-                "/odom", "/base_link",
+                "/odom_bis", "/base_link",
                 rospy.Time(0))
+
+            print "oooooooooooooooooooooo"
+            print "oooooooooooooooooooooo"
+            print "oooooooooooooooooooooo"
+            print "oooooooooooooooooooooo"
 
         # (trans, rot) = self.listener.lookupTransform(req.frame,
         #                                              MAP,
@@ -304,8 +309,8 @@ class ToolsPepper:
             try:
                 position_to_pub = ModelState()
                 # is the mark visible? if not we reach exception
-                (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
-                    self.vect_gazebo[i][1], MAP,  rospy.Time(0))
+                # (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
+                #     self.vect_gazebo[i][1], MAP,  rospy.Time(0))
 
                 # Where is the desired object
                 (trans_to_pub, rot_to_pub) = self.listener.lookupTransform(
@@ -325,6 +330,13 @@ class ToolsPepper:
                 if self.vect_gazebo[i][1] == "table":
                     quat_to_send = rot_to_pub
                     position_to_pub.pose.position.z = 0
+
+                elif i == 0:
+                    euler = euler_from_quaternion(rot_to_pub)
+                    quat_to_send = quaternion_from_euler(
+                        math.pi - euler[2], 0, 0)
+                    position_to_pub.pose.position.z = trans_to_pub[2]
+
                 else:
                     quat_to_send = rot_to_pub
                     position_to_pub.pose.position.z = trans_to_pub[2]
@@ -351,11 +363,11 @@ class ToolsPepper:
                     self.pub_obj.publish(position_to_pub)
             except Exception, exc:
                 print"publish gazebo", exc
-                position_to_pub.reference_frame = "world"
-                position_to_pub.pose.position.x = -5
-                position_to_pub.pose.position.y = 5
-                position_to_pub.model_name = self.vect_gazebo[i][0]
-                self.pub_obj.publish(position_to_pub)
+                # position_to_pub.reference_frame = "world"
+                # position_to_pub.pose.position.x = -5
+                # position_to_pub.pose.position.y = 5
+                # position_to_pub.model_name = self.vect_gazebo[i][0]
+                # self.pub_obj.publish(position_to_pub)
 
     def publish_tf(self, data):
         """

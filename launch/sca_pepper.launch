@@ -1,7 +1,13 @@
 <launch>
-  <arg name="namespace" default="" />
-  <group ns="$(arg namespace)"/>
-    <param name="tf_prefix" value="$(arg namespace)" />
-   <include file="$(find pepper_bringup)/launch/pepper_full.launch
-  </group>
-</launch
+
+  <arg name="nao_ip"              default="$(optenv NAO_IP 127.0.0.1)" />
+  <arg name="nao_port"            default="$(optenv NAO_PORT 9559)" />
+
+  <arg name="roscore_ip"          default="127.0.0.1" />
+  <arg name="network_interface"   default="eth0" />
+
+  <node pkg="naoqi_driver" type="alrosbridge_bin" name="naoqi_driver" required="true" args="--qi-url=tcp://$(arg nao_ip):9559 $(arg roscore_ip) $(arg network_interface)" output="screen" >
+  <remap from="/tf" to="/tf55relay"/>
+  </node>
+
+</launch>

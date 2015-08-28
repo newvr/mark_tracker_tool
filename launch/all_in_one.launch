@@ -18,7 +18,22 @@
  <!-- <remap from="/tf" to="/tf_relay_track"/> -->
  	</node>
 
-<node name="glitch_eraser" pkg="mark_tracker_tools" type="glitch_eraser.py" />
+
+<!-- TO ADD ANOTHER MARK TRACKER  -->
+<!--
+ <arg name="cam_image_topic1" default="/camera/front/camera/image_raw" />
+  <arg name="cam_info_topic1" default="/camera/front/camera/camera_info" />
+  <arg name="output_frame1" default="/CameraTop_frame" />
+
+<node name="ar_track_alvar_pepper" pkg="ar_track_alvar" type="individualMarkersNoKinect"
+respawn="true" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg
+max_track_error) $(arg cam_image_topic1) $(arg cam_info_topic1) $(arg output_frame1)" >
+<remap from="/visualization_marker" to="pepper/visualization_marker"/>
+</node>
+
+ -->
+
+<!-- <node name="glitch_eraser" pkg="mark_tracker_tools" type="glitch_eraser.py" /> -->
 
 
   <!-- ADD A ROBOT -->
@@ -44,7 +59,8 @@
    Plus this is launching the server, so if it was already running, it will close it and run a new one ( so the init data will need to be redone )
     -->
 
-    <node name="invert_tf_odom_parent" pkg="mark_tracker_tools" type="invert_tf_odom_parent.py" respawn="True"  />
+    <node name="invert_tf_odom_parent" pkg="tools_tf" type="invert_tf_odom_parent.py" args="$(arg ip_pepper) "
+      respawn="True"  />
 
     <!-- BEGIN SERVER-->
 
@@ -58,7 +74,7 @@
 <arg name="initial_pose_y" default="17.0" />
 
   <node pkg="mark_tracker_tools" type="init_mark0.sh"
-    args="4 $(env HOME)/catkin_ws/src/norme"
+    args="3 $(env HOME)/catkin_ws/src/norme"
     name="timed_roslaunch" output="screen">
   </node>
 

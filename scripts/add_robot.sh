@@ -43,7 +43,7 @@ echo " finiini "
 
     if test "$#" -eq 3; then
         export NAO_IP=$1
-        roslaunch pepper_bringup pepper_full.launch
+        roslaunch mark_tracker_tools sca_pepper.launch
 
     else
         echo "eeeeeeeeeeeeeelse"
