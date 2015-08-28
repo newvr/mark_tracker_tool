@@ -1,0 +1,71 @@
+<launch>
+<!-- ############## launch camera ############ -->
+	<include file="$(find axis_cam_modified)/launch/axis_basics.launch"/>
+
+
+<!--   *********************** Module AR_track_alvar *************   -->
+
+	<arg name="marker_size" default="12.0" />
+	<arg name="max_new_marker_error" default="0.08" />
+	<arg name="max_track_error" default="0.2" />
+	<arg name="cam_image_topic0" default="image_raw" />
+	<arg name="cam_info_topic0" default="/camera_info" />
+	<arg name="output_frame0" default="/axis_camera" />
+
+	<node name="ar_track_alvar_axis" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic0) $(arg cam_info_topic0) $(arg output_frame0)" >
+	<remap from="/visualization_marker" to="axis/visualization_marker"/>
+
+ <!-- <remap from="/tf" to="/tf_relay_track"/> -->
+ 	</node>
+
+<node name="glitch_eraser" pkg="mark_tracker_tools" type="glitch_eraser.py" />
+
+
+  <!-- ADD A ROBOT -->
+
+  <arg name="ip_pepper" default="10.0.204.34" />
+  <arg name="namespace" default="" />
+  <node pkg="mark_tracker_tools" type="add_robot.sh"
+    args="$(arg namespace) 10.0.204.34"
+    name="launch_robot_$(arg namespace)" output="screen">
+  </node>
+
+  <!-- ADD A ROBOT
+
+  <arg name="namespace2" default="" />
+  <node pkg="mark_tracker_tools" type="add_robot.sh"
+    args="$(arg namespace2) 10.0.206.111"
+    name="launch_robot_$(arg namespace2)" output="screen">
+  </node>
+
+-->
+   <!--
+   Add all the "$(arg namespace1)" in args of server_tools_mark_server otherwise it wont listen to the good topics
+   Plus this is launching the server, so if it was already running, it will close it and run a new one ( so the init data will need to be redone )
+    -->
+
+    <node name="invert_tf_odom_parent" pkg="mark_tracker_tools" type="invert_tf_odom_parent.py" respawn="True"  />
+
+    <!-- BEGIN SERVER-->
+
+
+  <arg name="path" default="$(find mark_tracker_tools)/saved_tf" />
+  <node name="server" pkg="mark_tracker_tools" type="server_tools_mark_tracker.py" respawn="True" args="$(arg path)" />
+
+
+  <!--call a service  -->
+
+<arg name="initial_pose_y" default="17.0" />
+
+  <node pkg="mark_tracker_tools" type="init_mark0.sh"
+    args="4 $(env HOME)/catkin_ws/src/norme"
+    name="timed_roslaunch" output="screen">
+  </node>
+
+
+
+
+
+</launch>
+
+
